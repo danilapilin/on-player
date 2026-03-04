@@ -48,9 +48,12 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .rec-text { font-size:12px; color:#2d3436; margin-top:4px; line-height:1.5; max-height:60px; overflow:hidden; }
 .rec-text.expanded { max-height:none; }
 .expand-btn { font-size:11px; color:#0984e3; cursor:pointer; border:none; background:none; margin-top:2px; }
-.audio-btn { flex-shrink:0; display:inline-flex; align-items:center; gap:4px; padding:6px 12px;
-  background:#0984e3; color:#fff; border-radius:6px; font-size:12px; text-decoration:none; font-weight:600; }
+.audio-btn { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+  width:36px; height:36px; background:#0984e3; color:#fff; border-radius:50%; font-size:14px;
+  border:none; cursor:pointer; }
 .audio-btn:hover { background:#0770c2; }
+.audio-btn.playing { background:#d63031; }
+.audio-inline { flex-shrink:0; width:220px; height:32px; margin-top:4px; }
 .empty { text-align:center; padding:40px; color:#b2bec3; font-size:14px; }
 .load-more { display:block; width:100%; padding:14px; background:#fff; border:2px dashed #dfe6e9; border-radius:10px; font-size:14px; color:#0984e3; cursor:pointer; text-align:center; margin:10px 0; font-weight:600; }
 .load-more:hover { background:#f0f7ff; border-color:#0984e3; }
@@ -217,7 +220,7 @@ function renderRow(d, globalIdx) {
         <div class="rec-text" id="txt-${globalIdx}-${ri}">${escHtml(r.transcript)}</div>
         ${r.transcript.length > 120 ? `<button class="expand-btn" onclick="toggleText(${globalIdx},${ri})">показать всё</button>` : ""}
       </div>
-      ${r.audio ? `<a class="audio-btn" href="${escAttr(r.audio)}" target="_blank" rel="noopener">&#9654; Аудио</a>` : ""}
+      ${r.audio ? `<button class="audio-btn" onclick="playAudio(this,'${escAttr(r.audio)}')">&#9654;</button>` : ""}
     </div>
   `).join("") : '<div style="font-size:12px;color:#b2bec3;padding:8px">Нет записей с речью</div>';
 
@@ -271,7 +274,41 @@ function toggleText(i, ri) {
 }
 
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
-function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;") : ""; }
+function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;") : ""; }
+
+let currentAudio = null;
+function playAudio(btn, url) {
+  // Stop current audio if playing
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.remove();
+    const oldBtn = document.querySelector('.audio-btn.playing');
+    if (oldBtn) { oldBtn.classList.remove('playing'); oldBtn.innerHTML = '&#9654;'; }
+    if (currentAudio._btn === btn) { currentAudio = null; return; }
+    currentAudio = null;
+  }
+  // Create audio element next to button
+  const audio = document.createElement('audio');
+  audio.controls = true;
+  audio.className = 'audio-inline';
+  audio.src = url;
+  audio._btn = btn;
+  btn.parentElement.appendChild(audio);
+  audio.play().catch(() => {
+    // Mixed content blocked — fallback to opening in new window
+    audio.remove();
+    window.open(url, '_blank');
+  });
+  btn.classList.add('playing');
+  btn.innerHTML = '&#9632;';
+  currentAudio = audio;
+  audio.addEventListener('ended', () => {
+    btn.classList.remove('playing');
+    btn.innerHTML = '&#9654;';
+    audio.remove();
+    currentAudio = null;
+  });
+}
 
 // ─── Analytics ───
 
