@@ -5,6 +5,9 @@ on:
     - cron: '0 8 * * 1-5'  # 8:00 UTC (11:00 MSK) пн-пт
   workflow_dispatch: {}     # ручной запуск
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -22,13 +25,20 @@ jobs:
         run: echo '${{ secrets.GOOGLE_SA_JSON }}' > google_sa.json
 
       - name: Restore recordings cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: recordings_cache.json
-          key: recordings-cache
+          key: recordings-cache-${{ github.run_id }}
+          restore-keys: recordings-cache-
 
       - name: Generate data
         run: python generate_player.py
+
+      - name: Save recordings cache
+        uses: actions/cache/save@v4
+        with:
+          path: recordings_cache.json
+          key: recordings-cache-${{ github.run_id }}
 
       - name: Commit and push data
         run: |
