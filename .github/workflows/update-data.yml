@@ -21,6 +21,12 @@ jobs:
       - name: Write Google SA credentials
         run: echo '${{ secrets.GOOGLE_SA_JSON }}' > google_sa.json
 
+      - name: Restore recordings cache
+        uses: actions/cache@v4
+        with:
+          path: recordings_cache.json
+          key: recordings-cache
+
       - name: Generate data
         run: python generate_player.py
 
