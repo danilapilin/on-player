@@ -299,24 +299,30 @@ def get_recs_for_phone(phone, sheet_iso, cache):
 
 
 def generate_date_json(date_info, all_data, cache):
-    """Generate player JSON for one date."""
+    """Generate player JSON for one date. Returns (data, stats, op_stats)."""
     sheet_iso = date_info["iso"]
     data = []
     stats = {"total": 0, "matched": 0, "mismatched": 0, "op_empty": 0, "no_recs": 0, "op_found": 0}
+    op_stats = {}  # per-operator breakdown
 
     for op_name, items in all_data.items():
+        ops = {"matched": 0, "mismatched": 0, "op_found": 0, "total": 0}
         for idx, item in enumerate(items):
             recs = get_recs_for_phone(item["phone"], sheet_iso, cache) if item["phone"] else []
             proc, sil = process_recs(recs)
             st = calc_status(item["operator_phone"], proc)
 
             stats["total"] += 1
+            ops["total"] += 1
             if item["operator_phone"]:
                 stats["op_found"] += 1
+                ops["op_found"] += 1
             if st == "Совпал":
                 stats["matched"] += 1
+                ops["matched"] += 1
             elif st == "Не совпал":
                 stats["mismatched"] += 1
+                ops["mismatched"] += 1
             elif st == "Оператор пусто, есть звонки":
                 stats["op_empty"] += 1
             elif "Нет записей" in st or st == "Оператор нашёл, записей нет":
@@ -338,7 +344,9 @@ def generate_date_json(date_info, all_data, cache):
                          for r in proc[:MAX_RECS]],
             })
 
-    return data, stats
+        op_stats[op_name] = ops
+
+    return data, stats, op_stats
 
 
 def main():
@@ -413,13 +421,24 @@ def main():
             iso = date_info["iso"]
             all_data = groups_data[gn][iso]
 
-            data, stats = generate_date_json(date_info, all_data, cache)
+            data, stats, op_stats = generate_date_json(date_info, all_data, cache)
             out_file = os.path.join(group_dir, f"{iso}.json")
             with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False)
 
             recall = round(stats["matched"] / stats["op_found"] * 100) if stats["op_found"] else 0
             log(f"  {date_info['date_str']}: {len(data)} rows, matched={stats['matched']}, recall={recall}%")
+
+            # per-operator recall for analytics
+            operators = {}
+            for name, s in op_stats.items():
+                op_recall = round(s["matched"] / s["op_found"] * 100) if s["op_found"] else 0
+                operators[name] = {
+                    "matched": s["matched"],
+                    "mismatched": s["mismatched"],
+                    "total": s["total"],
+                    "recall": op_recall,
+                }
 
             dates_index.append({
                 "date": iso,
@@ -430,6 +449,7 @@ def main():
                 "op_empty": stats["op_empty"],
                 "no_recs": stats["no_recs"],
                 "recall": recall,
+                "operators": operators,
             })
 
         with open(os.path.join(group_dir, "dates.json"), "w", encoding="utf-8") as f:

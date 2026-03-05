@@ -304,8 +304,14 @@ function toggleText(i, ri) {
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
 function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;") : ""; }
 
+// Proxy HTTP audio through Netlify to avoid mixed content blocking
+function proxyAudioUrl(url) {
+  return url.replace('http://assist.intmarksol.com/api/', '/audio');
+}
+
 let currentAudio = null;
-function playAudio(btn, url) {
+function playAudio(btn, rawUrl) {
+  const url = proxyAudioUrl(rawUrl);
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -433,6 +439,64 @@ function renderAnalytics() {
       </tr>
     </table>
   </div>
+
+  ${(function() {
+    // aggregate operator stats across all dates
+    const opNames = [];
+    const opTotals = {}; // {name: {matched, mismatched, op_found, total}}
+    DATES.forEach(d => {
+      if (!d.operators) return;
+      Object.entries(d.operators).forEach(([name, s]) => {
+        if (!opTotals[name]) { opTotals[name] = {matched:0,mismatched:0,total:0}; opNames.push(name); }
+        opTotals[name].matched += s.matched;
+        opTotals[name].mismatched += s.mismatched;
+        opTotals[name].total += s.total;
+      });
+    });
+    if (!opNames.length) return '';
+
+    // recall summary bars
+    const opSummary = opNames.map(name => {
+      const s = opTotals[name];
+      const opf = s.matched + s.mismatched;
+      const recall = opf ? Math.round(s.matched / opf * 100) : 0;
+      return {name, recall, matched: s.matched, opf, total: s.total};
+    });
+
+    let out = `<div class="card"><h2>Recall по операторам</h2>
+      <div class="chart">
+      ${opSummary.map(o => {
+        const color = OP_COLORS[o.name] || '#636e72';
+        return `<div class="chart-row">
+          <span class="chart-label" style="width:90px">${o.name}</span>
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="width:${o.recall}%">
+              <div class="seg" style="background:${color};width:100%"></div>
+            </div>
+          </div>
+          <span class="chart-val">${o.recall}% <span style="font-weight:400;color:#636e72">(${o.matched}/${o.opf})</span></span>
+        </div>`;
+      }).join('')}
+      </div>`;
+
+    // per-operator per-date table
+    out += `<h3 style="margin:20px 0 8px;font-size:14px;color:#636e72">Динамика по дням</h3>
+      <table class="tbl">
+        <tr><th>Дата</th>${opNames.map(n => `<th class="num">${n}</th>`).join('')}</tr>
+        ${DATES.map(d => {
+          if (!d.operators) return '';
+          return `<tr><td>${d.label}</td>${opNames.map(n => {
+            const s = d.operators[n];
+            if (!s) return '<td class="num">—</td>';
+            const color = s.recall >= 90 ? '#00b894' : s.recall >= 70 ? '#e17055' : '#d63031';
+            return `<td class="num" style="color:${color};font-weight:600">${s.recall}%</td>`;
+          }).join('')}</tr>`;
+        }).join('')}
+      </table>
+    </div>`;
+
+    return out;
+  })()}
 
   <div class="card">
     <h2>Методология</h2>
