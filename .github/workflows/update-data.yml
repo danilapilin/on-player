@@ -40,6 +40,12 @@ jobs:
           path: recordings_cache.json
           key: recordings-cache-${{ github.run_id }}
 
+      - name: Generate analytics screenshot
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+          python generate_screenshot.py
+
       - name: Commit and push data
         run: |
           git config user.name "github-actions[bot]"
