@@ -1,8 +1,9 @@
 """
 Generate per-date JSON files for the online player.
-Reads last N workdays from Google Sheet, fetches API recordings, outputs data/*.json.
+Reads last N workdays from Google Sheets for all groups,
+fetches API recordings, outputs data/group{N}/*.json.
 
-Optimized: caches at (phone, api_date) level for cross-date reuse,
+Optimized: caches at (phone, api_date) level for cross-date/group reuse,
 uses concurrent API requests.
 """
 
@@ -23,7 +24,6 @@ from api_client import get_recordings, get_recording_url
 from config import API_BASE, API_KEY
 
 SA_FILE = "google_sa.json"
-SOURCE_SHEET = "1KX4XQXzIj9mPU7mvST0Zy8Y0Aa9ZYLN_g-cmZwohdc8"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 MAX_RECS = 10
 LOOKBACK_DAYS = 4
@@ -33,11 +33,51 @@ CACHE_FILE = "recordings_cache.json"
 CONCURRENCY = 3  # parallel API requests
 SAVE_EVERY = 500  # save cache every N fetches
 
-OPERATORS = [
-    {"name": "Светлана", "phone": "D", "status": "E", "company": "L"},
-    {"name": "Елена",    "phone": "F", "status": "G", "company": "M"},
-    {"name": "Диана",    "phone": "H", "status": "I", "company": "N"},
-    {"name": "Юлия",     "phone": "J", "status": "K", "company": "O"},
+GROUPS = [
+    {
+        "num": 1,
+        "sheet_id": "1KX4XQXzIj9mPU7mvST0Zy8Y0Aa9ZYLN_g-cmZwohdc8",
+        "tab": "Группа №1",
+        "operators": [
+            {"name": "Светлана", "phone": "D", "status": "E", "company": "L"},
+            {"name": "Елена",    "phone": "F", "status": "G", "company": "M"},
+            {"name": "Диана",    "phone": "H", "status": "I", "company": "N"},
+            {"name": "Юлия",     "phone": "J", "status": "K", "company": "O"},
+        ],
+    },
+    {
+        "num": 2,
+        "sheet_id": "1zl09C82C73VhuUFRx_x9q6TQ9F9SUD6Qd7-0aKN7E04",
+        "tab": "Группа №2",
+        "operators": [
+            {"name": "Милана",     "phone": "D", "status": "E", "company": "L"},
+            {"name": "Кристина",   "phone": "F", "status": "G", "company": "M"},
+            {"name": "Наталья",    "phone": "H", "status": "I", "company": "N"},
+            {"name": "Анастасия",  "phone": "J", "status": "K", "company": "O"},
+        ],
+    },
+    {
+        "num": 3,
+        "sheet_id": "1vs6s0124Tgn3ho6IsiFkzywA8G6SEEm3TZOqX0oGdXE",
+        "tab": "Группа №3",
+        "operators": [
+            {"name": "Милана", "phone": "D", "status": "E", "company": "L"},
+            {"name": "Елена",  "phone": "F", "status": "G", "company": "M"},
+            {"name": "Лиза",   "phone": "H", "status": "I", "company": "N"},
+            {"name": "Юлия",   "phone": "J", "status": "K", "company": "O"},
+        ],
+    },
+    {
+        "num": 4,
+        "sheet_id": "1ACnZuBlfaR3fCWjNWW0Hbf253Wpa94-D8QxBS3HYBdM",
+        "tab": "Группа №4",
+        "operators": [
+            {"name": "Мария",    "phone": "D", "status": "E", "company": "L"},
+            {"name": "Марина",   "phone": "F", "status": "G", "company": "M"},
+            {"name": "Алина",    "phone": "H", "status": "I", "company": "N"},
+            {"name": "Светлана", "phone": "J", "status": "K", "company": "O"},
+        ],
+    },
 ]
 
 
@@ -50,11 +90,11 @@ def get_sheet_service():
     return build("sheets", "v4", credentials=creds)
 
 
-def find_date_ranges(service):
+def find_date_ranges(service, sheet_id, tab_name):
     """Find row ranges for each date in the sheet."""
     result = service.spreadsheets().values().get(
-        spreadsheetId=SOURCE_SHEET,
-        range="'Группа №1'!A1:A18000",
+        spreadsheetId=sheet_id,
+        range=f"'{tab_name}'!A1:A18000",
     ).execute()
     values = result.get("values", [])
 
@@ -90,22 +130,22 @@ def find_date_ranges(service):
     return available[-NUM_DATES:]
 
 
-def read_date_data(service, date_info):
+def read_date_data(service, date_info, sheet_id, tab_name, operators):
     """Read all operator data for a specific date."""
     start, end = date_info["start"], date_info["end"]
 
     ranges = [
-        f"'Группа №1'!B{start}:B{end}",
-        f"'Группа №1'!R{start}:R{end}",
-        f"'Группа №1'!S{start}:S{end}",
+        f"'{tab_name}'!B{start}:B{end}",
+        f"'{tab_name}'!R{start}:R{end}",
+        f"'{tab_name}'!S{start}:S{end}",
     ]
-    for op in OPERATORS:
-        ranges.append(f"'Группа №1'!{op['phone']}{start}:{op['phone']}{end}")
-        ranges.append(f"'Группа №1'!{op['status']}{start}:{op['status']}{end}")
-        ranges.append(f"'Группа №1'!{op['company']}{start}:{op['company']}{end}")
+    for op in operators:
+        ranges.append(f"'{tab_name}'!{op['phone']}{start}:{op['phone']}{end}")
+        ranges.append(f"'{tab_name}'!{op['status']}{start}:{op['status']}{end}")
+        ranges.append(f"'{tab_name}'!{op['company']}{start}:{op['company']}{end}")
 
     result = service.spreadsheets().values().batchGet(
-        spreadsheetId=SOURCE_SHEET, ranges=ranges,
+        spreadsheetId=sheet_id, ranges=ranges,
     ).execute()
 
     def col(idx):
@@ -117,7 +157,7 @@ def read_date_data(service, date_info):
     clients = col(2)
 
     all_data = {}
-    for i, op in enumerate(OPERATORS):
+    for i, op in enumerate(operators):
         base = 3 + i * 3
         phones = col(base)
         statuses = col(base + 1)
@@ -197,10 +237,9 @@ async def fetch_all_needed(needed_pairs, cache):
     done = 0
     total = len(needed_pairs)
     t0 = time.time()
-    last_save = 0
 
     async def fetch_one(phone, api_date, client):
-        nonlocal done, last_save
+        nonlocal done
         key = f"{phone}:{api_date}"
         async with sem:
             try:
@@ -219,12 +258,10 @@ async def fetch_all_needed(needed_pairs, cache):
                 log(f"  API: {done}/{total} ({rate:.1f}/s, ETA {eta:.0f}s)")
 
     async with httpx.AsyncClient() as client:
-        # Process in chunks to save cache periodically
         for i in range(0, total, SAVE_EVERY):
             chunk = needed_pairs[i:i + SAVE_EVERY]
             tasks = [fetch_one(phone, api_date, client) for phone, api_date in chunk]
             await asyncio.gather(*tasks)
-            # Save cache after each chunk
             with open(CACHE_FILE, "w") as f:
                 json.dump(cache, f, ensure_ascii=False)
             log(f"  Cache checkpoint: {len(cache)} entries saved")
@@ -247,7 +284,7 @@ def collect_needed_pairs(all_dates_data, cache):
                     key = f"{phone}:{api_date}"
                     if key not in cache:
                         needed.add((phone, api_date))
-    return list(needed)
+    return needed
 
 
 def get_recs_for_phone(phone, sheet_iso, cache):
@@ -307,7 +344,7 @@ def generate_date_json(date_info, all_data, cache):
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Load cache (phone:api_date level)
+    # Load cache (phone:api_date level, shared across groups)
     try:
         with open(CACHE_FILE, "r") as f:
             cache = json.load(f)
@@ -317,74 +354,92 @@ def main():
 
     service = get_sheet_service()
 
-    log("Finding available dates...")
-    date_ranges = find_date_ranges(service)
-    log(f"Found {len(date_ranges)} dates:")
-    for d in date_ranges:
-        log(f"  {d['date_str']} ({d['iso']})")
+    # Phase 1: Read sheet data for ALL groups
+    log("\n=== Phase 1: Reading Google Sheets ===")
+    groups_dates = {}   # {group_num: [date_ranges]}
+    groups_data = {}    # {group_num: {iso: all_data}}
 
-    # Phase 1: Read ALL sheet data
-    log("\n=== Phase 1: Reading Google Sheet ===")
-    all_dates_data = {}
-    for di, date_info in enumerate(date_ranges):
-        log(f"  [{di+1}/{len(date_ranges)}] {date_info['date_str']}...")
-        all_data = read_date_data(service, date_info)
-        total_rows = sum(len(v) for v in all_data.values())
-        log(f"    {total_rows} rows ({', '.join(f'{k}: {len(v)}' for k, v in all_data.items())})")
-        all_dates_data[date_info["iso"]] = all_data
+    for group in GROUPS:
+        gn = group["num"]
+        log(f"\n--- Группа {gn} ({group['tab']}) ---")
 
-    # Phase 2: Collect needed (phone, api_date) pairs and fetch from API
+        date_ranges = find_date_ranges(service, group["sheet_id"], group["tab"])
+        groups_dates[gn] = date_ranges
+        log(f"Found {len(date_ranges)} dates")
+
+        gdata = {}
+        for di, date_info in enumerate(date_ranges):
+            log(f"  [{di+1}/{len(date_ranges)}] {date_info['date_str']}...")
+            all_data = read_date_data(
+                service, date_info,
+                group["sheet_id"], group["tab"], group["operators"],
+            )
+            total_rows = sum(len(v) for v in all_data.values())
+            log(f"    {total_rows} rows")
+            gdata[date_info["iso"]] = all_data
+        groups_data[gn] = gdata
+
+    # Phase 2: Collect ALL needed pairs across groups, fetch from API
     log("\n=== Phase 2: Fetching recordings from API ===")
-    needed = collect_needed_pairs(all_dates_data, cache)
+    all_needed = set()
+    for gn, gdata in groups_data.items():
+        pairs = collect_needed_pairs(gdata, cache)
+        all_needed.update(pairs)
+    needed = list(all_needed)
 
-    # Count unique phones and dates
     phones_set = set(p for p, d in needed)
     dates_set = set(d for p, d in needed)
-    log(f"Need to fetch: {len(needed)} pairs ({len(phones_set)} phones × {len(dates_set)} dates)")
+    log(f"Need to fetch: {len(needed)} pairs ({len(phones_set)} phones x {len(dates_set)} dates)")
 
     if needed:
         asyncio.run(fetch_all_needed(needed, cache))
 
-        # Save cache
         with open(CACHE_FILE, "w") as f:
             json.dump(cache, f, ensure_ascii=False)
         log(f"Cache saved: {len(cache)} entries")
     else:
         log("All data in cache!")
 
-    # Phase 3: Generate per-date JSONs
+    # Phase 3: Generate per-group JSONs
     log("\n=== Phase 3: Generating JSONs ===")
-    dates_index = []
-    for di, date_info in enumerate(date_ranges):
-        iso = date_info["iso"]
-        all_data = all_dates_data[iso]
+    for group in GROUPS:
+        gn = group["num"]
+        group_dir = os.path.join(OUTPUT_DIR, f"group{gn}")
+        os.makedirs(group_dir, exist_ok=True)
 
-        data, stats = generate_date_json(date_info, all_data, cache)
-        out_file = os.path.join(OUTPUT_DIR, f"{iso}.json")
-        with open(out_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
+        log(f"\n--- Группа {gn} ---")
+        dates_index = []
+        for date_info in groups_dates[gn]:
+            iso = date_info["iso"]
+            all_data = groups_data[gn][iso]
 
-        recall = round(stats["matched"] / stats["op_found"] * 100) if stats["op_found"] else 0
-        log(f"  {date_info['date_str']}: {len(data)} rows, matched={stats['matched']}, recall={recall}%")
+            data, stats = generate_date_json(date_info, all_data, cache)
+            out_file = os.path.join(group_dir, f"{iso}.json")
+            with open(out_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
 
-        dates_index.append({
-            "date": iso,
-            "label": date_info["date_str"],
-            "sites": stats["total"],
-            "matched": stats["matched"],
-            "mismatched": stats["mismatched"],
-            "op_empty": stats["op_empty"],
-            "no_recs": stats["no_recs"],
-            "recall": recall,
-        })
+            recall = round(stats["matched"] / stats["op_found"] * 100) if stats["op_found"] else 0
+            log(f"  {date_info['date_str']}: {len(data)} rows, matched={stats['matched']}, recall={recall}%")
 
-    # Write dates index
-    with open(os.path.join(OUTPUT_DIR, "dates.json"), "w", encoding="utf-8") as f:
-        json.dump(dates_index, f, ensure_ascii=False, indent=2)
+            dates_index.append({
+                "date": iso,
+                "label": date_info["date_str"],
+                "sites": stats["total"],
+                "matched": stats["matched"],
+                "mismatched": stats["mismatched"],
+                "op_empty": stats["op_empty"],
+                "no_recs": stats["no_recs"],
+                "recall": recall,
+            })
 
-    log(f"\nDone! {len(dates_index)} dates in {OUTPUT_DIR}/")
-    for d in dates_index:
-        log(f"  {d['label']}: {d['sites']} sites, recall={d['recall']}%")
+        with open(os.path.join(group_dir, "dates.json"), "w", encoding="utf-8") as f:
+            json.dump(dates_index, f, ensure_ascii=False, indent=2)
+
+        log(f"Группа {gn}: {len(dates_index)} dates")
+        for d in dates_index:
+            log(f"  {d['label']}: {d['sites']} sites, recall={d['recall']}%")
+
+    log(f"\nDone! Generated data for {len(GROUPS)} groups")
 
 
 if __name__ == "__main__":

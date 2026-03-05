@@ -2,14 +2,19 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Сбор ОН — Группа 1</title>
+<title>Сбор ОН</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; color:#2d3436; }
 .header { background:#2d3436; color:#fff; padding:20px 24px; position:sticky; top:0; z-index:10; }
 .header h1 { font-size:18px; font-weight:600; }
 .header .sub { font-size:13px; opacity:0.7; margin-top:4px; }
-.tabs { display:flex; gap:4px; margin-top:12px; }
+.group-tabs { display:flex; gap:6px; margin-top:10px; }
+.group-tab { padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer;
+  background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); border:none; transition:all 0.2s; }
+.group-tab.active { background:#0984e3; color:#fff; }
+.group-tab:hover:not(.active) { background:rgba(255,255,255,0.2); }
+.tabs { display:flex; gap:4px; margin-top:10px; }
 .tab { padding:8px 18px; border-radius:8px 8px 0 0; font-size:13px; font-weight:600; cursor:pointer;
        background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); border:none; }
 .tab.active { background:#f5f6fa; color:#2d3436; }
@@ -27,11 +32,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .row.no-recs { border-left:4px solid #dfe6e9; }
 .row-top { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
 .row-num { font-size:12px; color:#b2bec3; min-width:30px; }
-.op-badge { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
-.op-badge.svetlana { background:#dfe6e9; color:#2d3436; }
-.op-badge.elena { background:#a29bfe; color:#fff; }
-.op-badge.diana { background:#fd79a8; color:#fff; }
-.op-badge.yulia { background:#00cec9; color:#fff; }
+.op-badge { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; color:#fff; }
 .site { font-weight:600; font-size:14px; color:#0984e3; word-break:break-all; }
 .badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
 .badge.green { background:#e8f8e8; color:#00b894; }
@@ -103,7 +104,13 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 <body>
 
 <div class="header">
-  <h1>Сбор ОН — Группа 1</h1>
+  <h1>Сбор ОН</h1>
+  <div class="group-tabs" id="groupTabs">
+    <button class="group-tab active" data-group="1" onclick="switchGroup(1)">Группа 1</button>
+    <button class="group-tab" data-group="2" onclick="switchGroup(2)">Группа 2</button>
+    <button class="group-tab" data-group="3" onclick="switchGroup(3)">Группа 3</button>
+    <button class="group-tab" data-group="4" onclick="switchGroup(4)">Группа 4</button>
+  </div>
   <div class="sub" id="subtitle">Загрузка...</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('player')">Записи</button>
@@ -114,10 +121,6 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
     <input type="text" id="search" placeholder="Поиск по сайту, номеру, тексту...">
     <select id="opFilter">
       <option value="all">Все операторы</option>
-      <option value="Светлана">Светлана</option>
-      <option value="Елена">Елена</option>
-      <option value="Диана">Диана</option>
-      <option value="Юлия">Юлия</option>
     </select>
     <select id="filter">
       <option value="all">Все статусы</option>
@@ -146,10 +149,35 @@ let FILTERED = [];
 let SHOWN = 0;
 const PAGE = 50;
 let currentTab = "player";
+let currentGroup = 1;
 
-const OP_CLS = {"Светлана":"svetlana","Елена":"elena","Диана":"diana","Юлия":"yulia"};
-const OP_COLORS = {"Светлана":"#636e72","Елена":"#a29bfe","Диана":"#fd79a8","Юлия":"#00cec9"};
-const BASE = "data/";
+// dynamic color palette for operators (assigned by position in loaded data)
+const OP_PALETTE = ["#636e72", "#a29bfe", "#fd79a8", "#00cec9"];
+let OP_COLORS = {};
+
+function getBase() { return `data/group${currentGroup}/`; }
+
+function assignOpColors() {
+  const ops = [...new Set(DATA.map(d => d.operator))];
+  OP_COLORS = {};
+  ops.forEach((op, i) => { OP_COLORS[op] = OP_PALETTE[i % OP_PALETTE.length]; });
+}
+
+function populateOperators() {
+  const ops = [...new Set(DATA.map(d => d.operator))];
+  const sel = document.getElementById("opFilter");
+  const prev = sel.value;
+  sel.innerHTML = '<option value="all">Все операторы</option>' +
+    ops.map(op => `<option value="${op}">${op}</option>`).join("");
+  if (ops.includes(prev)) sel.value = prev;
+}
+
+function switchGroup(num) {
+  currentGroup = num;
+  document.querySelectorAll(".group-tab").forEach(t =>
+    t.classList.toggle("active", parseInt(t.dataset.group) === num));
+  loadGroup();
+}
 
 function switchTab(tab) {
   currentTab = tab;
@@ -211,7 +239,7 @@ function applyFilters() {
 
 function renderRow(d, globalIdx) {
   const si = statusInfo(d.status);
-  const opCls = OP_CLS[d.operator] || "";
+  const opColor = OP_COLORS[d.operator] || "#636e72";
   const recsHtml = d.recs.length ? d.recs.map((r, ri) => `
     <div class="rec">
       <div class="rec-info">
@@ -228,7 +256,7 @@ function renderRow(d, globalIdx) {
     <div class="row ${si.cls}">
       <div class="row-top">
         <span class="row-num">#${d.idx}</span>
-        <span class="op-badge ${opCls}">${escHtml(d.operator)}</span>
+        <span class="op-badge" style="background:${opColor}">${escHtml(d.operator)}</span>
         <span class="site">${escHtml(d.site)}</span>
         <span class="badge ${si.badge}">${si.label}</span>
       </div>
@@ -278,7 +306,6 @@ function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").
 
 let currentAudio = null;
 function playAudio(btn, url) {
-  // Stop current audio if playing
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -287,7 +314,6 @@ function playAudio(btn, url) {
     if (currentAudio._btn === btn) { currentAudio = null; return; }
     currentAudio = null;
   }
-  // Create audio element next to button
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
@@ -295,7 +321,6 @@ function playAudio(btn, url) {
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   audio.play().catch(() => {
-    // Mixed content blocked — fallback to opening in new window
     audio.remove();
     window.open(url, '_blank');
   });
@@ -326,7 +351,7 @@ function renderAnalytics() {
 
   let html = `
   <div class="card">
-    <h2>Сводка за ${DATES.length} дней</h2>
+    <h2>Сводка за ${DATES.length} дней — Группа ${currentGroup}</h2>
     <div class="stat-grid">
       <div class="stat-box"><div class="val">${totalSites.toLocaleString()}</div><div class="lbl">Всего проверок</div></div>
       <div class="stat-box green"><div class="val">${totalMatched}</div><div class="lbl">Совпал</div></div>
@@ -412,7 +437,7 @@ function renderAnalytics() {
   <div class="card">
     <h2>Методология</h2>
     <div style="font-size:13px;line-height:1.7;color:#636e72">
-      <p><b>Источник данных:</b> Google Sheet (Группа 1, 4 оператора) + API assist.intmarksol.com</p>
+      <p><b>Источник данных:</b> Google Sheet (Группа ${currentGroup}, 4 оператора) + API assist.intmarksol.com</p>
       <p><b>Окно поиска:</b> для каждой даты заявки проверяются записи за +4 дня (LOOKBACK_DAYS=4)</p>
       <p><b>Записи:</b> показываются до 10 записей с речью (MAX_RECS=10), отсортированные по confidence. Статус считается по ВСЕМ записям.</p>
       <p><b>Матчинг:</b> callerid из записи сравнивается с номером оператора (подстрока в обе стороны)</p>
@@ -426,13 +451,50 @@ function renderAnalytics() {
 
 // ─── Data loading ───
 
+function loadGroup() {
+  const base = getBase();
+  document.getElementById("list").innerHTML = '<div class="loading">Загрузка данных...</div>';
+  document.getElementById("search").value = "";
+  document.getElementById("filter").value = "all";
+
+  fetch(base + "dates.json")
+    .then(r => r.json())
+    .then(dates => {
+      DATES = dates;
+      const sel = document.getElementById("dateFilter");
+      sel.innerHTML = dates.map(d =>
+        `<option value="${d.date}">${d.label} — ${d.sites} сайтов, recall ${d.recall}%</option>`
+      ).join("");
+      const latest = dates[dates.length - 1];
+      sel.value = latest.date;
+      document.getElementById("subtitle").textContent =
+        `${dates.length} дат (${dates[0].label} — ${latest.label}) · Группа ${currentGroup}`;
+      loadDate(latest.date);
+    })
+    .catch(() => {
+      document.getElementById("list").innerHTML =
+        '<div class="empty">Не удалось загрузить dates.json</div>';
+    });
+}
+
 async function loadDate(dateIso) {
+  const base = getBase();
   document.getElementById("list").innerHTML = '<div class="loading">Загрузка данных...</div>';
   try {
-    const resp = await fetch(BASE + dateIso + ".json");
+    const resp = await fetch(base + dateIso + ".json");
     DATA = await resp.json();
+    assignOpColors();
+    populateOperators();
     updateStatusCounts();
     applyFilters();
+
+    const d = DATES.find(x => x.date === dateIso);
+    if (d) {
+      document.getElementById("subtitle").textContent =
+        `${d.label} · Группа ${currentGroup} · ${d.sites} сайтов · Recall ${d.recall}%`;
+      document.getElementById("dateStats").innerHTML =
+        `<span>Совпал: ${d.matched}</span><span>Не совпал: ${d.mismatched}</span><span>Оп. пусто: ${d.op_empty}</span><span>Нет записей: ${d.no_recs}</span>`;
+    }
   } catch(e) {
     document.getElementById("list").innerHTML = `<div class="empty">Не удалось загрузить ${dateIso}.json</div>`;
   }
@@ -441,37 +503,10 @@ async function loadDate(dateIso) {
 document.getElementById("search").addEventListener("input", applyFilters);
 document.getElementById("filter").addEventListener("change", applyFilters);
 document.getElementById("opFilter").addEventListener("change", () => { updateStatusCounts(); applyFilters(); });
-document.getElementById("dateFilter").addEventListener("change", (e) => {
-  const iso = e.target.value;
-  const d = DATES.find(x => x.date === iso);
-  if (d) {
-    document.getElementById("subtitle").textContent =
-      `${d.label} · Группа 1 · ${d.sites} сайтов · Recall ${d.recall}%`;
-    document.getElementById("dateStats").innerHTML =
-      `<span>Совпал: ${d.matched}</span><span>Не совпал: ${d.mismatched}</span><span>Оп. пусто: ${d.op_empty}</span><span>Нет записей: ${d.no_recs}</span>`;
-  }
-  loadDate(iso);
-});
+document.getElementById("dateFilter").addEventListener("change", (e) => loadDate(e.target.value));
 
 // Init
-fetch(BASE + "dates.json")
-  .then(r => r.json())
-  .then(dates => {
-    DATES = dates;
-    const sel = document.getElementById("dateFilter");
-    sel.innerHTML = dates.map(d =>
-      `<option value="${d.date}">${d.label} — ${d.sites} сайтов, recall ${d.recall}%</option>`
-    ).join("");
-    const latest = dates[dates.length - 1];
-    sel.value = latest.date;
-    sel.dispatchEvent(new Event("change"));
-    document.getElementById("subtitle").textContent =
-      `${dates.length} дат (${dates[0].label} — ${latest.label}) · Группа 1`;
-  })
-  .catch(() => {
-    document.getElementById("list").innerHTML =
-      '<div class="empty">Не удалось загрузить dates.json</div>';
-  });
+loadGroup();
 </script>
 </body>
 </html>
