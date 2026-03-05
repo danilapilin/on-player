@@ -386,9 +386,11 @@ function renderAnalytics() {
     byDate[date] = a;
   });
 
-  const last = byDate[allDates[allDates.length-1]];
-  const lastLbl = dl[allDates[allDates.length-1]];
-  const prev = allDates.length > 1 ? byDate[allDates[allDates.length-2]] : null;
+  // report = previous day (yesterday), compare with day before that
+  const ri = allDates.length >= 2 ? allDates.length - 2 : allDates.length - 1;
+  const last = byDate[allDates[ri]];
+  const lastLbl = dl[allDates[ri]];
+  const prev = ri > 0 ? byDate[allDates[ri - 1]] : null;
 
   // delta indicator vs previous day
   function dlt(cur, prv, up) {
@@ -471,23 +473,35 @@ function renderAnalytics() {
       </div>`;
     });
 
-    // operator table
+    // operator recall by date table
     if (dates.some(d => d.operators)) {
-      const opT = {}; const opN = [];
-      dates.forEach(d => { if (!d.operators) return; Object.entries(d.operators).forEach(([n, s]) => {
-        if (!opT[n]) { opT[n] = {m:0,mis:0,t:0}; opN.push(n); }
-        opT[n].m += s.matched; opT[n].mis += s.mismatched; opT[n].t += s.total;
-      }); });
-      html += `<h3 style="margin:16px 0 8px">Операторы</h3><table class="tbl">
-        <tr><th>Оператор</th><th class="num">Всего</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Recall</th></tr>`;
-      opN.forEach(n => {
-        const s = opT[n], of = s.m+s.mis, rc = of ? Math.round(s.m/of*100) : 0;
-        html += `<tr><td>${n}</td><td class="num">${s.t}</td>
-          <td class="num" style="color:#00b894;font-weight:600">${s.m}</td>
-          <td class="num" style="color:#d63031;font-weight:600">${s.mis}</td>
-          <td class="num" style="font-weight:700;color:${rcColor(rc)}">${rc}%</td></tr>`;
+      // collect unique operator names
+      const opN = [];
+      dates.forEach(d => { if (!d.operators) return; Object.keys(d.operators).forEach(n => { if (!opN.includes(n)) opN.push(n); }); });
+
+      html += `<h3 style="margin:16px 0 8px">Recall по операторам</h3><table class="tbl">
+        <tr><th>Дата</th><th class="num">Сайтов</th>${opN.map(n => `<th class="num">${n}</th>`).join('')}<th class="num">Группа</th></tr>`;
+      // per-operator aggregates for totals row
+      const opA = {}; opN.forEach(n => { opA[n] = {m:0,mis:0}; });
+      dates.forEach(d => {
+        html += `<tr><td>${d.label.split(' ')[0]}</td><td class="num">${d.sites}</td>`;
+        opN.forEach(n => {
+          const s = d.operators?.[n];
+          if (!s) { html += '<td class="num">—</td>'; return; }
+          opA[n].m += s.matched; opA[n].mis += s.mismatched;
+          html += `<td class="num" style="color:${rcColor(s.recall)};font-weight:600">${s.recall}% <span style="font-weight:400;color:#636e72;font-size:11px">(${s.matched}/${s.matched+s.mismatched})</span></td>`;
+        });
+        html += `<td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td></tr>`;
       });
-      html += `</table>`;
+      // totals row
+      html += `<tr style="font-weight:700;border-top:2px solid #dfe6e9"><td>Итого</td><td class="num"></td>`;
+      opN.forEach(n => {
+        const s = opA[n], of = s.m+s.mis, rc = of ? Math.round(s.m/of*100) : 0;
+        html += `<td class="num" style="color:${rcColor(rc)}">${rc}% <span style="font-weight:400;color:#636e72;font-size:11px">(${s.m}/${of})</span></td>`;
+      });
+      const gm = dates.reduce((s,d)=>s+d.matched,0), gmis = dates.reduce((s,d)=>s+d.mismatched,0);
+      const grc = (gm+gmis)?Math.round(gm/(gm+gmis)*100):0;
+      html += `<td class="num" style="color:${rcColor(grc)}">${grc}%</td></tr></table>`;
     }
     html += `</div>`;
   });
