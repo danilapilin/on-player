@@ -304,9 +304,11 @@ def generate_date_json(date_info, all_data, cache):
     data = []
     stats = {"total": 0, "matched": 0, "mismatched": 0, "op_empty": 0, "no_recs": 0, "op_found": 0}
     op_stats = {}  # per-operator breakdown
+    all_unique_phones = set()  # unique operator phones across entire group
 
     for op_name, items in all_data.items():
         ops = {"matched": 0, "mismatched": 0, "op_found": 0, "total": 0}
+        op_unique_phones = set()
         for idx, item in enumerate(items):
             recs = get_recs_for_phone(item["phone"], sheet_iso, cache) if item["phone"] else []
             proc, sil = process_recs(recs)
@@ -317,6 +319,8 @@ def generate_date_json(date_info, all_data, cache):
             if item["operator_phone"]:
                 stats["op_found"] += 1
                 ops["op_found"] += 1
+                all_unique_phones.add(item["operator_phone"])
+                op_unique_phones.add(item["operator_phone"])
             if st == "Совпал":
                 stats["matched"] += 1
                 ops["matched"] += 1
@@ -344,8 +348,10 @@ def generate_date_json(date_info, all_data, cache):
                          for r in proc[:MAX_RECS]],
             })
 
+        ops["unique_phones"] = len(op_unique_phones)
         op_stats[op_name] = ops
 
+    stats["unique_phones"] = len(all_unique_phones)
     return data, stats, op_stats
 
 
@@ -438,6 +444,7 @@ def main():
                     "mismatched": s["mismatched"],
                     "total": s["total"],
                     "recall": op_recall,
+                    "unique_phones": s["unique_phones"],
                 }
 
             dates_index.append({
@@ -449,6 +456,7 @@ def main():
                 "op_empty": stats["op_empty"],
                 "no_recs": stats["no_recs"],
                 "recall": recall,
+                "unique_phones": stats["unique_phones"],
                 "operators": operators,
             })
 

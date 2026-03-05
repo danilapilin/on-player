@@ -377,10 +377,10 @@ function renderAnalytics() {
   // aggregate by date across all groups
   const byDate = {};
   allDates.forEach(date => {
-    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0 };
+    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0, uph:0 };
     gNums.forEach(g => {
       const d = ALL_GROUPS[g].find(x => x.date === date);
-      if (d) { a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched; a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; }
+      if (d) { a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched; a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; a.uph+=(d.unique_phones||0); }
     });
     a.recall = (a.matched+a.mismatched) ? Math.round(a.matched/(a.matched+a.mismatched)*100) : 0;
     byDate[date] = a;
@@ -420,6 +420,7 @@ function renderAnalytics() {
       <div class="stat-box yellow"><div class="val">${last.op_empty}</div><div class="lbl">Оп. пусто</div>${dlt(last.op_empty,prev?.op_empty,false)}</div>
       <div class="stat-box"><div class="val">${last.no_recs}</div><div class="lbl">Нет записей</div></div>
       <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall</div>${dlt(last.recall,prev?.recall,true)}</div>
+      <div class="stat-box"><div class="val">${last.uph}</div><div class="lbl">Уник. номеров</div>${dlt(last.uph,prev?.uph,true)}</div>
     </div></div>`;
 
   // ── Section 2: Status distribution by days (all groups combined) ──
@@ -441,23 +442,24 @@ function renderAnalytics() {
 
   // detail table
   html += `<h3 style="margin:20px 0 8px">Детализация по дням</h3><table class="tbl">
-    <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th></tr>`;
-  let tS=0,tM=0,tMis=0,tOE=0,tNR=0;
+    <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th><th class="num">Уник. номеров</th></tr>`;
+  let tS=0,tM=0,tMis=0,tOE=0,tNR=0,tUph=0;
   allDates.forEach(date => {
-    const d = byDate[date]; tS+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs;
+    const d = byDate[date]; tS+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs; tUph+=d.uph;
     html += `<tr><td>${dl[date]}</td><td class="num">${d.sites}</td>
       <td class="num" style="color:#00b894;font-weight:600">${d.matched}</td>
       <td class="num" style="color:#d63031;font-weight:600">${d.mismatched}</td>
       <td class="num" style="color:#e17055;font-weight:600">${d.op_empty}</td>
       <td class="num">${d.no_recs}</td>
-      <td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td></tr>`;
+      <td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td>
+      <td class="num">${d.uph}</td></tr>`;
   });
   const tRc = (tM+tMis)?Math.round(tM/(tM+tMis)*100):0;
   html += `<tr style="font-weight:700;border-top:2px solid #dfe6e9">
     <td>Итого</td><td class="num">${tS}</td>
     <td class="num" style="color:#00b894">${tM}</td><td class="num" style="color:#d63031">${tMis}</td>
     <td class="num" style="color:#e17055">${tOE}</td><td class="num">${tNR}</td>
-    <td class="num">${tRc}%</td></tr></table></div>`;
+    <td class="num">${tRc}%</td><td class="num">${tUph}</td></tr></table></div>`;
 
   // ── Section 3: Per group (stacked bars + operators) ──
   gNums.forEach(g => {
@@ -469,7 +471,7 @@ function renderAnalytics() {
       html += `<div class="chart-row" style="margin-bottom:8px">
         <span class="chart-label" style="width:60px">${d.label.split(' ')[0]}</span>
         ${sbar(d, 26)}
-        <span class="chart-val" style="width:50px">${d.sites}</span>
+        <span class="chart-val" style="width:120px">${d.sites} <span style="color:#636e72;font-size:11px">(${d.unique_phones||0} уник.)</span></span>
       </div>`;
     });
 
