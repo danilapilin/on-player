@@ -127,11 +127,11 @@
     "label": "05.03",
     "sites": 1720,
     "matched": 7,
-    "mismatched": 3,
-    "op_empty": 17,
+    "mismatched": 4,
+    "op_empty": 16,
     "no_recs": 1693,
     "recall": 2,
-    "unique_phones": 203,
+    "unique_phones": 207,
     "operators": {
       "Светлана": {
         "matched": 4,
@@ -149,10 +149,10 @@
       },
       "Диана": {
         "matched": 2,
-        "mismatched": 2,
+        "mismatched": 3,
         "total": 430,
-        "recall": 3,
-        "unique_phones": 73
+        "recall": 2,
+        "unique_phones": 85
       },
       "Юлия": {
         "matched": 1,
