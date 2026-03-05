@@ -7,7 +7,33 @@
     "mismatched": 12,
     "op_empty": 420,
     "no_recs": 1059,
-    "recall": 84
+    "recall": 84,
+    "operators": {
+      "Светлана": {
+        "matched": 109,
+        "mismatched": 4,
+        "total": 430,
+        "recall": 94
+      },
+      "Елена": {
+        "matched": 44,
+        "mismatched": 7,
+        "total": 430,
+        "recall": 56
+      },
+      "Диана": {
+        "matched": 18,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 100
+      },
+      "Юлия": {
+        "matched": 58,
+        "mismatched": 1,
+        "total": 430,
+        "recall": 98
+      }
+    }
   },
   {
     "date": "2026-03-03",
@@ -17,7 +43,33 @@
     "mismatched": 37,
     "op_empty": 911,
     "no_recs": 305,
-    "recall": 90
+    "recall": 90,
+    "operators": {
+      "Светлана": {
+        "matched": 134,
+        "mismatched": 13,
+        "total": 424,
+        "recall": 89
+      },
+      "Елена": {
+        "matched": 116,
+        "mismatched": 22,
+        "total": 424,
+        "recall": 80
+      },
+      "Диана": {
+        "matched": 88,
+        "mismatched": 0,
+        "total": 424,
+        "recall": 100
+      },
+      "Юлия": {
+        "matched": 105,
+        "mismatched": 2,
+        "total": 424,
+        "recall": 98
+      }
+    }
   },
   {
     "date": "2026-03-04",
@@ -27,7 +79,33 @@
     "mismatched": 44,
     "op_empty": 647,
     "no_recs": 615,
-    "recall": 81
+    "recall": 80,
+    "operators": {
+      "Светлана": {
+        "matched": 120,
+        "mismatched": 14,
+        "total": 427,
+        "recall": 82
+      },
+      "Елена": {
+        "matched": 66,
+        "mismatched": 21,
+        "total": 427,
+        "recall": 55
+      },
+      "Диана": {
+        "matched": 111,
+        "mismatched": 3,
+        "total": 427,
+        "recall": 97
+      },
+      "Юлия": {
+        "matched": 105,
+        "mismatched": 6,
+        "total": 427,
+        "recall": 88
+      }
+    }
   },
   {
     "date": "2026-03-05",
@@ -37,6 +115,32 @@
     "mismatched": 1,
     "op_empty": 21,
     "no_recs": 1693,
-    "recall": 2
+    "recall": 2,
+    "operators": {
+      "Светлана": {
+        "matched": 4,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 3
+      },
+      "Елена": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 0
+      },
+      "Диана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 0
+      },
+      "Юлия": {
+        "matched": 1,
+        "mismatched": 1,
+        "total": 430,
+        "recall": 1
+      }
+    }
   }
 ]

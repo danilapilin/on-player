@@ -7,7 +7,33 @@
     "mismatched": 0,
     "op_empty": 530,
     "no_recs": 1008,
-    "recall": 99
+    "recall": 99,
+    "operators": {
+      "Мария": {
+        "matched": 37,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 100
+      },
+      "Марина": {
+        "matched": 43,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 100
+      },
+      "Алина": {
+        "matched": 51,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 98
+      },
+      "Светлана": {
+        "matched": 51,
+        "mismatched": 0,
+        "total": 430,
+        "recall": 100
+      }
+    }
   },
   {
     "date": "2026-03-03",
@@ -17,7 +43,33 @@
     "mismatched": 5,
     "op_empty": 941,
     "no_recs": 185,
-    "recall": 99
+    "recall": 99,
+    "operators": {
+      "Мария": {
+        "matched": 124,
+        "mismatched": 3,
+        "total": 419,
+        "recall": 98
+      },
+      "Марина": {
+        "matched": 122,
+        "mismatched": 0,
+        "total": 419,
+        "recall": 100
+      },
+      "Алина": {
+        "matched": 162,
+        "mismatched": 0,
+        "total": 419,
+        "recall": 100
+      },
+      "Светлана": {
+        "matched": 137,
+        "mismatched": 2,
+        "total": 419,
+        "recall": 98
+      }
+    }
   },
   {
     "date": "2026-03-04",
@@ -27,16 +79,68 @@
     "mismatched": 6,
     "op_empty": 913,
     "no_recs": 381,
-    "recall": 98
+    "recall": 98,
+    "operators": {
+      "Мария": {
+        "matched": 83,
+        "mismatched": 3,
+        "total": 428,
+        "recall": 95
+      },
+      "Марина": {
+        "matched": 65,
+        "mismatched": 0,
+        "total": 428,
+        "recall": 100
+      },
+      "Алина": {
+        "matched": 142,
+        "mismatched": 3,
+        "total": 428,
+        "recall": 98
+      },
+      "Светлана": {
+        "matched": 122,
+        "mismatched": 0,
+        "total": 428,
+        "recall": 100
+      }
+    }
   },
   {
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1716,
-    "matched": 359,
+    "matched": 395,
     "mismatched": 0,
-    "op_empty": 736,
+    "op_empty": 700,
     "no_recs": 621,
-    "recall": 100
+    "recall": 100,
+    "operators": {
+      "Мария": {
+        "matched": 94,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 100
+      },
+      "Марина": {
+        "matched": 98,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 99
+      },
+      "Алина": {
+        "matched": 88,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 100
+      },
+      "Светлана": {
+        "matched": 115,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 100
+      }
+    }
   }
 ]
