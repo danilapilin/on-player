@@ -150,6 +150,7 @@ let SHOWN = 0;
 const PAGE = 50;
 let currentTab = "player";
 let currentGroup = 1;
+let ALL_GROUPS = {}; // {1: [dates], 2: [dates], ...} for cross-group analytics
 
 // dynamic color palette for operators (assigned by position in loaded data)
 const OP_PALETTE = ["#636e72", "#a29bfe", "#fd79a8", "#00cec9"];
@@ -179,14 +180,32 @@ function switchGroup(num) {
   loadGroup();
 }
 
-function switchTab(tab) {
+async function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i === (tab==="player"?0:1)));
   document.getElementById("playerView").classList.toggle("hidden", tab !== "player");
   document.getElementById("playerControls").style.display = tab === "player" ? "flex" : "none";
   document.getElementById("dateStats").style.display = tab === "player" ? "flex" : "none";
   document.getElementById("analyticsView").classList.toggle("visible", tab === "analytics");
-  if (tab === "analytics") renderAnalytics();
+  if (tab === "analytics") {
+    document.getElementById("analyticsContent").innerHTML = '<div class="loading">Загрузка аналитики по всем группам...</div>';
+    await loadAllGroupsData();
+    renderAnalytics();
+  }
+}
+
+async function loadAllGroupsData() {
+  const fetches = [];
+  for (let g = 1; g <= 4; g++) {
+    if (ALL_GROUPS[g]) continue;
+    fetches.push(
+      fetch(`data/group${g}/dates.json`)
+        .then(r => r.json())
+        .then(data => { ALL_GROUPS[g] = data; })
+        .catch(() => {})
+    );
+  }
+  await Promise.all(fetches);
 }
 
 function statusInfo(st) {
@@ -341,172 +360,126 @@ function playAudio(btn, rawUrl) {
   });
 }
 
-// ─── Analytics ───
+// ─── Analytics (cross-group dashboard) ───
+
+function rcColor(v) { return v >= 90 ? '#00b894' : v >= 70 ? '#e17055' : '#d63031'; }
 
 function renderAnalytics() {
-  if (!DATES.length) return;
   const c = document.getElementById("analyticsContent");
+  const gNums = Object.keys(ALL_GROUPS).map(Number).sort();
+  if (!gNums.length) { c.innerHTML = '<div class="empty">Нет данных</div>'; return; }
 
-  const totalSites = DATES.reduce((s,d) => s + d.sites, 0);
-  const totalMatched = DATES.reduce((s,d) => s + d.matched, 0);
-  const totalMismatched = DATES.reduce((s,d) => s + d.mismatched, 0);
-  const totalOpEmpty = DATES.reduce((s,d) => s + d.op_empty, 0);
-  const totalNoRecs = DATES.reduce((s,d) => s + d.no_recs, 0);
-  const totalOpFound = totalMatched + totalMismatched;
-  const avgRecall = totalOpFound ? Math.round(totalMatched / totalOpFound * 100) : 0;
+  const GC = ['','#0984e3','#00b894','#e17055','#d63031']; // group colors [1-indexed]
+
+  // all unique dates
+  const allDates = [...new Set(gNums.flatMap(g => ALL_GROUPS[g].map(d => d.date)))].sort();
+  const dl = {}; gNums.forEach(g => ALL_GROUPS[g].forEach(d => { dl[d.date] = d.label; }));
+
+  // ── Section 1: Overall summary ──
+  let tSites=0,tM=0,tMis=0,tOE=0,tNR=0;
+  gNums.forEach(g => ALL_GROUPS[g].forEach(d => { tSites+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs; }));
+  const tOF=tM+tMis, avgR=tOF?Math.round(tM/tOF*100):0;
 
   let html = `
   <div class="card">
-    <h2>Сводка за ${DATES.length} дней — Группа ${currentGroup}</h2>
+    <h2>Общая сводка — все группы</h2>
     <div class="stat-grid">
-      <div class="stat-box"><div class="val">${totalSites.toLocaleString()}</div><div class="lbl">Всего проверок</div></div>
-      <div class="stat-box green"><div class="val">${totalMatched}</div><div class="lbl">Совпал</div></div>
-      <div class="stat-box red"><div class="val">${totalMismatched}</div><div class="lbl">Не совпал</div></div>
-      <div class="stat-box yellow"><div class="val">${totalOpEmpty}</div><div class="lbl">Оп. пусто</div></div>
-      <div class="stat-box"><div class="val">${totalNoRecs}</div><div class="lbl">Нет записей</div></div>
-      <div class="stat-box green"><div class="val">${avgRecall}%</div><div class="lbl">Recall (средний)</div></div>
+      <div class="stat-box"><div class="val">${tSites.toLocaleString()}</div><div class="lbl">Всего проверок</div></div>
+      <div class="stat-box green"><div class="val">${tM.toLocaleString()}</div><div class="lbl">Совпал</div></div>
+      <div class="stat-box red"><div class="val">${tMis}</div><div class="lbl">Не совпал</div></div>
+      <div class="stat-box yellow"><div class="val">${tOE.toLocaleString()}</div><div class="lbl">Оп. пусто</div></div>
+      <div class="stat-box"><div class="val">${tNR.toLocaleString()}</div><div class="lbl">Нет записей</div></div>
+      <div class="stat-box green"><div class="val">${avgR}%</div><div class="lbl">Recall (средний)</div></div>
     </div>
-  </div>
+  </div>`;
 
-  <div class="card">
-    <h2>Recall по дням</h2>
-    <div class="chart" id="recallChart">
-    ${DATES.map(d => `
-      <div class="chart-row">
-        <span class="chart-label">${d.label}</span>
-        <div class="chart-bar-wrap">
-          <div class="chart-bar" style="width:${d.recall}%">
-            <div class="seg matched" style="width:100%"></div>
-          </div>
-        </div>
-        <span class="chart-val">${d.recall}%</span>
-      </div>
-    `).join("")}
-    </div>
-  </div>
+  // ── Section 2: By groups ──
+  html += `<div class="card"><h2>Recall по группам</h2><div class="chart">`;
+  gNums.forEach(g => {
+    const dates = ALL_GROUPS[g];
+    const m = dates.reduce((s,d)=>s+d.matched,0);
+    const mis = dates.reduce((s,d)=>s+d.mismatched,0);
+    const of = m+mis, recall = of ? Math.round(m/of*100) : 0;
+    html += `<div class="chart-row">
+      <span class="chart-label" style="width:80px">Группа ${g}</span>
+      <div class="chart-bar-wrap"><div class="chart-bar" style="width:${recall}%"><div class="seg" style="background:${GC[g]};width:100%"></div></div></div>
+      <span class="chart-val">${recall}% <span style="font-weight:400;color:#636e72">(${m}/${of})</span></span>
+    </div>`;
+  });
+  html += `</div>`;
 
-  <div class="card">
-    <h2>Распределение статусов по дням</h2>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#00b894"></div>Совпал</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#d63031"></div>Не совпал</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#fdcb6e"></div>Оп. пусто</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#dfe6e9"></div>Нет записей</div>
-    </div>
-    <div class="chart">
-    ${DATES.map(d => {
-      const t = d.sites || 1;
-      return `
-      <div class="chart-row">
-        <span class="chart-label">${d.label}</span>
-        <div class="chart-bar-wrap">
-          <div class="chart-bar" style="width:100%">
-            <div class="seg matched" style="width:${d.matched/t*100}%"></div>
-            <div class="seg mismatched" style="width:${d.mismatched/t*100}%"></div>
-            <div class="seg op-empty" style="width:${d.op_empty/t*100}%"></div>
-            <div class="seg no-recs" style="width:${(d.no_recs)/t*100}%"></div>
-          </div>
-        </div>
-        <span class="chart-val">${d.sites}</span>
-      </div>`;
-    }).join("")}
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Детализация по дням</h2>
+  // date × group table
+  html += `<h3 style="margin:20px 0 8px;font-size:14px;color:#636e72">Динамика по дням</h3>
     <table class="tbl">
-      <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th></tr>
-      ${DATES.map(d => `
-        <tr>
-          <td>${d.label}</td>
-          <td class="num">${d.sites}</td>
-          <td class="num" style="color:#00b894;font-weight:600">${d.matched}</td>
-          <td class="num" style="color:#d63031">${d.mismatched}</td>
-          <td class="num" style="color:#e17055">${d.op_empty}</td>
-          <td class="num">${d.no_recs}</td>
-          <td class="num" style="font-weight:600">${d.recall}%</td>
-        </tr>
-      `).join("")}
-      <tr style="font-weight:700;border-top:2px solid #dfe6e9">
-        <td>Итого / Среднее</td>
-        <td class="num">${totalSites}</td>
-        <td class="num" style="color:#00b894">${totalMatched}</td>
-        <td class="num" style="color:#d63031">${totalMismatched}</td>
-        <td class="num" style="color:#e17055">${totalOpEmpty}</td>
-        <td class="num">${totalNoRecs}</td>
-        <td class="num">${avgRecall}%</td>
-      </tr>
-    </table>
-  </div>
+    <tr><th>Дата</th>${gNums.map(g => `<th class="num" style="color:${GC[g]}">Группа ${g}</th>`).join('')}<th class="num">Общий</th></tr>`;
+  allDates.forEach(date => {
+    let rm=0,rof=0;
+    html += `<tr><td>${dl[date]}</td>`;
+    gNums.forEach(g => {
+      const d = ALL_GROUPS[g].find(x => x.date === date);
+      if (!d) { html += '<td class="num">—</td>'; return; }
+      html += `<td class="num" style="color:${rcColor(d.recall)};font-weight:600">${d.recall}%</td>`;
+      rm += d.matched; rof += d.matched + d.mismatched;
+    });
+    const rr = rof ? Math.round(rm/rof*100) : 0;
+    html += `<td class="num" style="font-weight:700">${rr}%</td></tr>`;
+  });
+  html += `</table></div>`;
 
-  ${(function() {
-    // aggregate operator stats across all dates
-    const opNames = [];
-    const opTotals = {}; // {name: {matched, mismatched, op_found, total}}
-    DATES.forEach(d => {
+  // ── Section 3: By operators (per group) ──
+  html += `<div class="card"><h2>Recall по операторам</h2>`;
+
+  gNums.forEach(g => {
+    const dates = ALL_GROUPS[g];
+    if (!dates.some(d => d.operators)) return;
+
+    // aggregate operators for this group
+    const opNames = []; const opT = {};
+    dates.forEach(d => {
       if (!d.operators) return;
-      Object.entries(d.operators).forEach(([name, s]) => {
-        if (!opTotals[name]) { opTotals[name] = {matched:0,mismatched:0,total:0}; opNames.push(name); }
-        opTotals[name].matched += s.matched;
-        opTotals[name].mismatched += s.mismatched;
-        opTotals[name].total += s.total;
+      Object.entries(d.operators).forEach(([n, s]) => {
+        if (!opT[n]) { opT[n] = {m:0,mis:0,t:0}; opNames.push(n); }
+        opT[n].m += s.matched; opT[n].mis += s.mismatched; opT[n].t += s.total;
       });
     });
-    if (!opNames.length) return '';
+    if (!opNames.length) return;
 
-    // recall summary bars
-    const opSummary = opNames.map(name => {
-      const s = opTotals[name];
-      const opf = s.matched + s.mismatched;
-      const recall = opf ? Math.round(s.matched / opf * 100) : 0;
-      return {name, recall, matched: s.matched, opf, total: s.total};
-    });
-
-    let out = `<div class="card"><h2>Recall по операторам</h2>
-      <div class="chart">
-      ${opSummary.map(o => {
-        const color = OP_COLORS[o.name] || '#636e72';
-        return `<div class="chart-row">
-          <span class="chart-label" style="width:90px">${o.name}</span>
-          <div class="chart-bar-wrap">
-            <div class="chart-bar" style="width:${o.recall}%">
-              <div class="seg" style="background:${color};width:100%"></div>
-            </div>
-          </div>
-          <span class="chart-val">${o.recall}% <span style="font-weight:400;color:#636e72">(${o.matched}/${o.opf})</span></span>
-        </div>`;
-      }).join('')}
+    html += `<h3 style="margin:20px 0 10px;font-size:15px;font-weight:700;color:${GC[g]}">Группа ${g}</h3><div class="chart">`;
+    opNames.forEach(n => {
+      const s = opT[n], of = s.m+s.mis, rc = of ? Math.round(s.m/of*100) : 0;
+      html += `<div class="chart-row">
+        <span class="chart-label" style="width:100px">${n}</span>
+        <div class="chart-bar-wrap"><div class="chart-bar" style="width:${rc}%"><div class="seg" style="background:${GC[g]};width:100%"></div></div></div>
+        <span class="chart-val">${rc}% <span style="font-weight:400;color:#636e72">(${s.m}/${of})</span></span>
       </div>`;
+    });
+    html += `</div>`;
 
-    // per-operator per-date table
-    out += `<h3 style="margin:20px 0 8px;font-size:14px;color:#636e72">Динамика по дням</h3>
-      <table class="tbl">
-        <tr><th>Дата</th>${opNames.map(n => `<th class="num">${n}</th>`).join('')}</tr>
-        ${DATES.map(d => {
-          if (!d.operators) return '';
-          return `<tr><td>${d.label}</td>${opNames.map(n => {
-            const s = d.operators[n];
-            if (!s) return '<td class="num">—</td>';
-            const color = s.recall >= 90 ? '#00b894' : s.recall >= 70 ? '#e17055' : '#d63031';
-            return `<td class="num" style="color:${color};font-weight:600">${s.recall}%</td>`;
-          }).join('')}</tr>`;
-        }).join('')}
-      </table>
-    </div>`;
+    // operator × date table
+    html += `<table class="tbl" style="margin:8px 0 20px">
+      <tr><th>Дата</th>${opNames.map(n => `<th class="num">${n}</th>`).join('')}</tr>`;
+    dates.forEach(d => {
+      if (!d.operators) return;
+      html += `<tr><td>${d.label}</td>`;
+      opNames.forEach(n => {
+        const s = d.operators[n];
+        if (!s) { html += '<td class="num">—</td>'; return; }
+        html += `<td class="num" style="color:${rcColor(s.recall)};font-weight:600">${s.recall}%</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</table>`;
+  });
 
-    return out;
-  })()}
+  html += `</div>`;
 
-  <div class="card">
+  // Methodology
+  html += `<div class="card">
     <h2>Методология</h2>
     <div style="font-size:13px;line-height:1.7;color:#636e72">
-      <p><b>Источник данных:</b> Google Sheet (Группа ${currentGroup}, 4 оператора) + API assist.intmarksol.com</p>
-      <p><b>Окно поиска:</b> для каждой даты заявки проверяются записи за +4 дня (LOOKBACK_DAYS=4)</p>
-      <p><b>Записи:</b> показываются до 10 записей с речью (MAX_RECS=10), отсортированные по confidence. Статус считается по ВСЕМ записям.</p>
-      <p><b>Матчинг:</b> callerid из записи сравнивается с номером оператора (подстрока в обе стороны)</p>
-      <p><b>Recall</b> = Совпал / (Совпал + Не совпал) — доля операторских находок, подтверждённых автоматикой</p>
-      <p style="margin-top:8px"><b>Оператор пусто</b> — оператор не указал номер компании, но звонки на номер есть (потенциал автоматизации)</p>
+      <p><b>Источник данных:</b> Google Sheets (4 группы x 4 оператора) + API assist.intmarksol.com</p>
+      <p><b>Recall</b> = Совпал / (Совпал + Не совпал) — доля подтверждённых автоматикой</p>
+      <p><b>Окно поиска:</b> +4 дня от даты заявки (LOOKBACK_DAYS=4)</p>
     </div>
   </div>`;
 
@@ -525,6 +498,7 @@ function loadGroup() {
     .then(r => r.json())
     .then(dates => {
       DATES = dates;
+      ALL_GROUPS[currentGroup] = dates; // cache for analytics
       const sel = document.getElementById("dateFilter");
       sel.innerHTML = dates.map(d =>
         `<option value="${d.date}">${d.label} — ${d.sites} сайтов, recall ${d.recall}%</option>`
