@@ -2,7 +2,7 @@ name: Update player data
 
 on:
   schedule:
-    - cron: '0 8 * * 1-5'  # 8:00 UTC (11:00 MSK) пн-пт
+    - cron: '0 6 * * 1-5'  # 6:00 UTC (9:00 MSK) пн-пт
   workflow_dispatch: {}     # ручной запуск
 
 permissions:
