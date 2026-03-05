@@ -369,119 +369,136 @@ function renderAnalytics() {
   const gNums = Object.keys(ALL_GROUPS).map(Number).sort();
   if (!gNums.length) { c.innerHTML = '<div class="empty">Нет данных</div>'; return; }
 
-  const GC = ['','#0984e3','#00b894','#e17055','#d63031']; // group colors [1-indexed]
-
-  // all unique dates
+  const GC = ['','#0984e3','#00b894','#e17055','#d63031'];
+  const SC = { m:'#00b894', mis:'#d63031', oe:'#fdcb6e', nr:'#dfe6e9' };
   const allDates = [...new Set(gNums.flatMap(g => ALL_GROUPS[g].map(d => d.date)))].sort();
   const dl = {}; gNums.forEach(g => ALL_GROUPS[g].forEach(d => { dl[d.date] = d.label; }));
 
-  // ── Section 1: Overall summary ──
-  let tSites=0,tM=0,tMis=0,tOE=0,tNR=0;
-  gNums.forEach(g => ALL_GROUPS[g].forEach(d => { tSites+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs; }));
-  const tOF=tM+tMis, avgR=tOF?Math.round(tM/tOF*100):0;
-
-  let html = `
-  <div class="card">
-    <h2>Общая сводка — все группы</h2>
-    <div class="stat-grid">
-      <div class="stat-box"><div class="val">${tSites.toLocaleString()}</div><div class="lbl">Всего проверок</div></div>
-      <div class="stat-box green"><div class="val">${tM.toLocaleString()}</div><div class="lbl">Совпал</div></div>
-      <div class="stat-box red"><div class="val">${tMis}</div><div class="lbl">Не совпал</div></div>
-      <div class="stat-box yellow"><div class="val">${tOE.toLocaleString()}</div><div class="lbl">Оп. пусто</div></div>
-      <div class="stat-box"><div class="val">${tNR.toLocaleString()}</div><div class="lbl">Нет записей</div></div>
-      <div class="stat-box green"><div class="val">${avgR}%</div><div class="lbl">Recall (средний)</div></div>
-    </div>
-  </div>`;
-
-  // ── Section 2: By groups ──
-  html += `<div class="card"><h2>Recall по группам</h2><div class="chart">`;
-  gNums.forEach(g => {
-    const dates = ALL_GROUPS[g];
-    const m = dates.reduce((s,d)=>s+d.matched,0);
-    const mis = dates.reduce((s,d)=>s+d.mismatched,0);
-    const of = m+mis, recall = of ? Math.round(m/of*100) : 0;
-    html += `<div class="chart-row">
-      <span class="chart-label" style="width:80px">Группа ${g}</span>
-      <div class="chart-bar-wrap"><div class="chart-bar" style="width:${recall}%"><div class="seg" style="background:${GC[g]};width:100%"></div></div></div>
-      <span class="chart-val">${recall}% <span style="font-weight:400;color:#636e72">(${m}/${of})</span></span>
-    </div>`;
-  });
-  html += `</div>`;
-
-  // date × group table
-  html += `<h3 style="margin:20px 0 8px;font-size:14px;color:#636e72">Динамика по дням</h3>
-    <table class="tbl">
-    <tr><th>Дата</th>${gNums.map(g => `<th class="num" style="color:${GC[g]}">Группа ${g}</th>`).join('')}<th class="num">Общий</th></tr>`;
+  // aggregate by date across all groups
+  const byDate = {};
   allDates.forEach(date => {
-    let rm=0,rof=0;
-    html += `<tr><td>${dl[date]}</td>`;
+    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0 };
     gNums.forEach(g => {
       const d = ALL_GROUPS[g].find(x => x.date === date);
-      if (!d) { html += '<td class="num">—</td>'; return; }
-      html += `<td class="num" style="color:${rcColor(d.recall)};font-weight:600">${d.recall}%</td>`;
-      rm += d.matched; rof += d.matched + d.mismatched;
+      if (d) { a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched; a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; }
     });
-    const rr = rof ? Math.round(rm/rof*100) : 0;
-    html += `<td class="num" style="font-weight:700">${rr}%</td></tr>`;
+    a.recall = (a.matched+a.mismatched) ? Math.round(a.matched/(a.matched+a.mismatched)*100) : 0;
+    byDate[date] = a;
   });
-  html += `</table></div>`;
 
-  // ── Section 3: By operators (per group) ──
-  html += `<div class="card"><h2>Recall по операторам</h2>`;
+  const last = byDate[allDates[allDates.length-1]];
+  const lastLbl = dl[allDates[allDates.length-1]];
+  const prev = allDates.length > 1 ? byDate[allDates[allDates.length-2]] : null;
 
+  // delta indicator vs previous day
+  function dlt(cur, prv, up) {
+    if (prv === null || prv === undefined) return '';
+    const d = cur - prv; if (d === 0) return '';
+    const ok = up ? d > 0 : d < 0;
+    return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'} ${Math.abs(d)}</div>`;
+  }
+
+  // stacked bar helper
+  function sbar(d, h) {
+    const t = d.sites || 1;
+    return `<div class="chart-bar-wrap" style="height:${h||28}px"><div class="chart-bar" style="width:100%;display:flex">
+      <div class="seg" style="width:${d.matched/t*100}%;background:${SC.m}"></div>
+      <div class="seg" style="width:${d.mismatched/t*100}%;background:${SC.mis}"></div>
+      <div class="seg" style="width:${d.op_empty/t*100}%;background:${SC.oe}"></div>
+      <div class="seg" style="width:${d.no_recs/t*100}%;background:${SC.nr}"></div>
+    </div></div>`;
+  }
+
+  // ── Section 1: Daily summary (latest day with deltas) ──
+  let html = `<div class="card"><h2>Сводка за ${lastLbl}</h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="val">${last.sites}</div><div class="lbl">Проверок</div>${dlt(last.sites,prev?.sites,true)}</div>
+      <div class="stat-box green"><div class="val">${last.matched}</div><div class="lbl">Совпал</div>${dlt(last.matched,prev?.matched,true)}</div>
+      <div class="stat-box red"><div class="val">${last.mismatched}</div><div class="lbl">Не совпал</div>${dlt(last.mismatched,prev?.mismatched,false)}</div>
+      <div class="stat-box yellow"><div class="val">${last.op_empty}</div><div class="lbl">Оп. пусто</div>${dlt(last.op_empty,prev?.op_empty,false)}</div>
+      <div class="stat-box"><div class="val">${last.no_recs}</div><div class="lbl">Нет записей</div></div>
+      <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall</div>${dlt(last.recall,prev?.recall,true)}</div>
+    </div></div>`;
+
+  // ── Section 2: Status distribution by days (all groups combined) ──
+  html += `<div class="card"><h2>Распределение статусов по дням</h2>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:${SC.m}"></div>Совпал</div>
+      <div class="legend-item"><div class="legend-dot" style="background:${SC.mis}"></div>Не совпал</div>
+      <div class="legend-item"><div class="legend-dot" style="background:${SC.oe}"></div>Оп. пусто</div>
+      <div class="legend-item"><div class="legend-dot" style="background:${SC.nr}"></div>Нет записей</div>
+    </div>`;
+  allDates.forEach(date => {
+    const d = byDate[date];
+    html += `<div class="chart-row" style="margin-bottom:8px">
+      <span class="chart-label" style="width:60px">${dl[date].split(' ')[0]}</span>
+      ${sbar(d, 28)}
+      <span class="chart-val" style="width:50px">${d.sites}</span>
+    </div>`;
+  });
+
+  // detail table
+  html += `<h3 style="margin:20px 0 8px">Детализация по дням</h3><table class="tbl">
+    <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th></tr>`;
+  let tS=0,tM=0,tMis=0,tOE=0,tNR=0;
+  allDates.forEach(date => {
+    const d = byDate[date]; tS+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs;
+    html += `<tr><td>${dl[date]}</td><td class="num">${d.sites}</td>
+      <td class="num" style="color:#00b894;font-weight:600">${d.matched}</td>
+      <td class="num" style="color:#d63031;font-weight:600">${d.mismatched}</td>
+      <td class="num" style="color:#e17055;font-weight:600">${d.op_empty}</td>
+      <td class="num">${d.no_recs}</td>
+      <td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td></tr>`;
+  });
+  const tRc = (tM+tMis)?Math.round(tM/(tM+tMis)*100):0;
+  html += `<tr style="font-weight:700;border-top:2px solid #dfe6e9">
+    <td>Итого</td><td class="num">${tS}</td>
+    <td class="num" style="color:#00b894">${tM}</td><td class="num" style="color:#d63031">${tMis}</td>
+    <td class="num" style="color:#e17055">${tOE}</td><td class="num">${tNR}</td>
+    <td class="num">${tRc}%</td></tr></table></div>`;
+
+  // ── Section 3: Per group (stacked bars + operators) ──
   gNums.forEach(g => {
     const dates = ALL_GROUPS[g];
-    if (!dates.some(d => d.operators)) return;
+    html += `<div class="card"><h2 style="color:${GC[g]}">Группа ${g}</h2>`;
 
-    // aggregate operators for this group
-    const opNames = []; const opT = {};
+    // stacked bars by date
     dates.forEach(d => {
-      if (!d.operators) return;
-      Object.entries(d.operators).forEach(([n, s]) => {
-        if (!opT[n]) { opT[n] = {m:0,mis:0,t:0}; opNames.push(n); }
-        opT[n].m += s.matched; opT[n].mis += s.mismatched; opT[n].t += s.total;
-      });
-    });
-    if (!opNames.length) return;
-
-    html += `<h3 style="margin:20px 0 10px;font-size:15px;font-weight:700;color:${GC[g]}">Группа ${g}</h3><div class="chart">`;
-    opNames.forEach(n => {
-      const s = opT[n], of = s.m+s.mis, rc = of ? Math.round(s.m/of*100) : 0;
-      html += `<div class="chart-row">
-        <span class="chart-label" style="width:100px">${n}</span>
-        <div class="chart-bar-wrap"><div class="chart-bar" style="width:${rc}%"><div class="seg" style="background:${GC[g]};width:100%"></div></div></div>
-        <span class="chart-val">${rc}% <span style="font-weight:400;color:#636e72">(${s.m}/${of})</span></span>
+      html += `<div class="chart-row" style="margin-bottom:8px">
+        <span class="chart-label" style="width:60px">${d.label.split(' ')[0]}</span>
+        ${sbar(d, 26)}
+        <span class="chart-val" style="width:50px">${d.sites}</span>
       </div>`;
     });
-    html += `</div>`;
 
-    // operator × date table
-    html += `<table class="tbl" style="margin:8px 0 20px">
-      <tr><th>Дата</th>${opNames.map(n => `<th class="num">${n}</th>`).join('')}</tr>`;
-    dates.forEach(d => {
-      if (!d.operators) return;
-      html += `<tr><td>${d.label}</td>`;
-      opNames.forEach(n => {
-        const s = d.operators[n];
-        if (!s) { html += '<td class="num">—</td>'; return; }
-        html += `<td class="num" style="color:${rcColor(s.recall)};font-weight:600">${s.recall}%</td>`;
+    // operator table
+    if (dates.some(d => d.operators)) {
+      const opT = {}; const opN = [];
+      dates.forEach(d => { if (!d.operators) return; Object.entries(d.operators).forEach(([n, s]) => {
+        if (!opT[n]) { opT[n] = {m:0,mis:0,t:0}; opN.push(n); }
+        opT[n].m += s.matched; opT[n].mis += s.mismatched; opT[n].t += s.total;
+      }); });
+      html += `<h3 style="margin:16px 0 8px">Операторы</h3><table class="tbl">
+        <tr><th>Оператор</th><th class="num">Всего</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Recall</th></tr>`;
+      opN.forEach(n => {
+        const s = opT[n], of = s.m+s.mis, rc = of ? Math.round(s.m/of*100) : 0;
+        html += `<tr><td>${n}</td><td class="num">${s.t}</td>
+          <td class="num" style="color:#00b894;font-weight:600">${s.m}</td>
+          <td class="num" style="color:#d63031;font-weight:600">${s.mis}</td>
+          <td class="num" style="font-weight:700;color:${rcColor(rc)}">${rc}%</td></tr>`;
       });
-      html += `</tr>`;
-    });
-    html += `</table>`;
+      html += `</table>`;
+    }
+    html += `</div>`;
   });
 
-  html += `</div>`;
-
   // Methodology
-  html += `<div class="card">
-    <h2>Методология</h2>
+  html += `<div class="card"><h2>Методология</h2>
     <div style="font-size:13px;line-height:1.7;color:#636e72">
-      <p><b>Источник данных:</b> Google Sheets (4 группы x 4 оператора) + API assist.intmarksol.com</p>
+      <p><b>Источник:</b> Google Sheets (4 группы × 4 оператора) + API assist.intmarksol.com</p>
       <p><b>Recall</b> = Совпал / (Совпал + Не совпал) — доля подтверждённых автоматикой</p>
-      <p><b>Окно поиска:</b> +4 дня от даты заявки (LOOKBACK_DAYS=4)</p>
-    </div>
-  </div>`;
+      <p><b>Окно поиска:</b> +4 дня от даты заявки</p>
+    </div></div>`;
 
   c.innerHTML = html;
 }
