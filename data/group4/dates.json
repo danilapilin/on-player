@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2026-03-02",
+    "label": "02.03",
+    "sites": 1720,
+    "matched": 182,
+    "mismatched": 0,
+    "op_empty": 530,
+    "no_recs": 1008,
+    "recall": 99
+  },
+  {
+    "date": "2026-03-03",
+    "label": "03.03",
+    "sites": 1676,
+    "matched": 545,
+    "mismatched": 5,
+    "op_empty": 941,
+    "no_recs": 185,
+    "recall": 99
+  },
+  {
+    "date": "2026-03-04",
+    "label": "04.03",
+    "sites": 1712,
+    "matched": 412,
+    "mismatched": 6,
+    "op_empty": 913,
+    "no_recs": 381,
+    "recall": 98
+  },
+  {
+    "date": "2026-03-05",
+    "label": "05.03",
+    "sites": 1716,
+    "matched": 359,
+    "mismatched": 0,
+    "op_empty": 736,
+    "no_recs": 621,
+    "recall": 100
+  }
+]
