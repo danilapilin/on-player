@@ -1,102 +1,42 @@
 [
   {
-    "date": "2026-02-18",
-    "label": "18.02",
-    "sites": 1724,
-    "matched": 524,
-    "mismatched": 58,
-    "op_empty": 1039,
-    "no_recs": 103,
-    "recall": 90
-  },
-  {
-    "date": "2026-02-19",
-    "label": "19.02",
-    "sites": 1696,
-    "matched": 427,
-    "mismatched": 21,
-    "op_empty": 1045,
-    "no_recs": 203,
-    "recall": 94
-  },
-  {
-    "date": "2026-02-20",
-    "label": "20.02",
-    "sites": 1716,
-    "matched": 310,
-    "mismatched": 36,
-    "op_empty": 1089,
-    "no_recs": 281,
-    "recall": 86
-  },
-  {
-    "date": "2026-02-24",
-    "label": "24.02",
-    "sites": 1704,
-    "matched": 421,
-    "mismatched": 28,
-    "op_empty": 1155,
-    "no_recs": 100,
-    "recall": 94
-  },
-  {
-    "date": "2026-02-25",
-    "label": "25.02",
-    "sites": 1728,
-    "matched": 439,
-    "mismatched": 20,
-    "op_empty": 1134,
-    "no_recs": 135,
-    "recall": 95
-  },
-  {
-    "date": "2026-02-26",
-    "label": "26.02",
-    "sites": 1692,
-    "matched": 251,
-    "mismatched": 28,
-    "op_empty": 1156,
-    "no_recs": 257,
-    "recall": 89
-  },
-  {
-    "date": "2026-02-27",
-    "label": "27.02",
-    "sites": 1720,
-    "matched": 363,
-    "mismatched": 18,
-    "op_empty": 1015,
-    "no_recs": 324,
-    "recall": 94
-  },
-  {
     "date": "2026-03-02",
     "label": "02.03",
     "sites": 1720,
-    "matched": 226,
-    "mismatched": 9,
-    "op_empty": 426,
+    "matched": 229,
+    "mismatched": 12,
+    "op_empty": 420,
     "no_recs": 1059,
-    "recall": 88
+    "recall": 84
   },
   {
     "date": "2026-03-03",
     "label": "03.03",
     "sites": 1696,
-    "matched": 427,
-    "mismatched": 31,
-    "op_empty": 933,
+    "matched": 443,
+    "mismatched": 36,
+    "op_empty": 912,
     "no_recs": 305,
-    "recall": 91
+    "recall": 90
   },
   {
     "date": "2026-03-04",
     "label": "04.03",
     "sites": 1708,
-    "matched": 173,
-    "mismatched": 1,
-    "op_empty": 919,
+    "matched": 402,
+    "mismatched": 38,
+    "op_empty": 653,
     "no_recs": 615,
-    "recall": 99
+    "recall": 83
+  },
+  {
+    "date": "2026-03-05",
+    "label": "05.03",
+    "sites": 1720,
+    "matched": 0,
+    "mismatched": 0,
+    "op_empty": 27,
+    "no_recs": 1693,
+    "recall": 0
   }
 ]
