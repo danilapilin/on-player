@@ -145,7 +145,7 @@
         "mismatched": 0,
         "total": 430,
         "recall": 0,
-        "unique_phones": 103
+        "unique_phones": 104
       },
       "Диана": {
         "matched": 2,
@@ -160,6 +160,47 @@
         "total": 430,
         "recall": 1,
         "unique_phones": 86
+      }
+    }
+  },
+  {
+    "date": "2026-03-06",
+    "label": "06.03",
+    "sites": 1732,
+    "matched": 0,
+    "mismatched": 0,
+    "op_empty": 9,
+    "no_recs": 1723,
+    "recall": 0,
+    "unique_phones": 0,
+    "operators": {
+      "Светлана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Елена": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Диана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Юлия": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
       }
     }
   }
