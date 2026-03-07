@@ -156,6 +156,24 @@ def compute_ai_vs_op(row):
     return "disagree"
 
 
+class FatalAPIError(Exception):
+    """Неустранимая ошибка API — нет смысла ретраить."""
+    pass
+
+
+FATAL_MESSAGES = [
+    "credit balance is too low",
+    "billing",
+    "account has been disabled",
+]
+
+
+def _is_fatal(error):
+    """Проверяет, является ли ошибка фатальной (ретраи бессмысленны)."""
+    msg = str(error).lower()
+    return any(phrase in msg for phrase in FATAL_MESSAGES)
+
+
 async def process_batch(client, batch, semaphore, dry_run=False):
     """Отправляет батч в Claude и возвращает распарсенные результаты."""
     prompt = build_batch_prompt(batch)
@@ -180,6 +198,10 @@ async def process_batch(client, batch, semaphore, dry_run=False):
                 if attempt == MAX_RETRIES - 1:
                     return []
             except Exception as e:
+                # фатальные ошибки — прекращаем всю обработку
+                if _is_fatal(e):
+                    raise FatalAPIError(str(e))
+
                 wait = 2 ** (attempt + 1)
                 log.warning("API error (attempt %d): %s, retry in %ds", attempt + 1, e, wait)
                 if attempt == MAX_RETRIES - 1:
@@ -211,11 +233,17 @@ async def process_group(client, group_num, target_date, dry_run=False):
         batches.append(chunk)
 
     processed = 0
+    fatal = False
     for batch_items in batches:
         indices = [idx for idx, _ in batch_items]
         rows = [row for _, row in batch_items]
 
-        results = await process_batch(client, rows, semaphore, dry_run)
+        try:
+            results = await process_batch(client, rows, semaphore, dry_run)
+        except FatalAPIError as e:
+            log.error("Group %d: fatal API error, stopping: %s", group_num, e)
+            fatal = True
+            break
 
         # применяем результаты
         result_map = {r["id"]: r for r in results}
@@ -243,6 +271,9 @@ async def process_group(client, group_num, target_date, dry_run=False):
     if not dry_run:
         save_date_data(group_num, target_date, data)
         log.info("Group %d: saved %s.json", group_num, target_date)
+
+    if fatal:
+        raise FatalAPIError("credit balance or billing issue")
 
     return data
 
@@ -315,7 +346,12 @@ async def main():
     total_stats = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
 
     for group_num in range(1, NUM_GROUPS + 1):
-        data = await process_group(client, group_num, target_date, dry_run)
+        try:
+            data = await process_group(client, group_num, target_date, dry_run)
+        except FatalAPIError as e:
+            log.error("Fatal API error, stopping all groups: %s", e)
+            break
+
         if data is None:
             continue
 
