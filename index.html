@@ -356,14 +356,12 @@ function toggleText(i, ri) {
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
 function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;") : ""; }
 
-// Proxy HTTP audio through Netlify to avoid mixed content blocking
-function proxyAudioUrl(url) {
-  return url.replace('http://assist.intmarksol.com/api/', '/audio');
-}
-
-let currentAudio = null;
+// Audio: API only supports HTTP, so on HTTPS sites open in new tab
 function playAudio(btn, rawUrl) {
-  const url = proxyAudioUrl(rawUrl);
+  if (location.protocol === 'https:') {
+    window.open(rawUrl, '_blank');
+    return;
+  }
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -375,12 +373,12 @@ function playAudio(btn, rawUrl) {
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
-  audio.src = url;
+  audio.src = rawUrl;
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   audio.play().catch(() => {
     audio.remove();
-    window.open(url, '_blank');
+    window.open(rawUrl, '_blank');
   });
   btn.classList.add('playing');
   btn.innerHTML = '&#9632;';
@@ -392,6 +390,7 @@ function playAudio(btn, rawUrl) {
     currentAudio = null;
   });
 }
+let currentAudio = null;
 
 // ─── Analytics (cross-group dashboard) ───
 
