@@ -4,22 +4,22 @@
     "label": "02.03",
     "sites": 1720,
     "matched": 229,
-    "mismatched": 12,
-    "op_empty": 420,
-    "no_recs": 1059,
+    "mismatched": 15,
+    "op_empty": 501,
+    "no_recs": 975,
     "recall": 84,
     "unique_phones": 137,
     "operators": {
       "Светлана": {
         "matched": 109,
-        "mismatched": 4,
+        "mismatched": 6,
         "total": 430,
         "recall": 94,
         "unique_phones": 91
       },
       "Елена": {
         "matched": 44,
-        "mismatched": 7,
+        "mismatched": 8,
         "total": 430,
         "recall": 56,
         "unique_phones": 57
@@ -44,39 +44,39 @@
     "date": "2026-03-03",
     "label": "03.03",
     "sites": 1696,
-    "matched": 442,
-    "mismatched": 40,
-    "op_empty": 909,
-    "no_recs": 305,
-    "recall": 89,
+    "matched": 449,
+    "mismatched": 43,
+    "op_empty": 1154,
+    "no_recs": 50,
+    "recall": 91,
     "unique_phones": 211,
     "operators": {
       "Светлана": {
-        "matched": 134,
-        "mismatched": 14,
+        "matched": 135,
+        "mismatched": 17,
         "total": 424,
-        "recall": 88,
+        "recall": 89,
         "unique_phones": 120
       },
       "Елена": {
-        "matched": 115,
-        "mismatched": 23,
+        "matched": 118,
+        "mismatched": 25,
         "total": 424,
-        "recall": 79,
+        "recall": 81,
         "unique_phones": 102
       },
       "Диана": {
-        "matched": 88,
-        "mismatched": 1,
+        "matched": 90,
+        "mismatched": 0,
         "total": 424,
-        "recall": 98,
+        "recall": 100,
         "unique_phones": 79
       },
       "Юлия": {
-        "matched": 105,
-        "mismatched": 2,
+        "matched": 106,
+        "mismatched": 1,
         "total": 424,
-        "recall": 98,
+        "recall": 99,
         "unique_phones": 85
       }
     }
@@ -85,39 +85,39 @@
     "date": "2026-03-04",
     "label": "04.03",
     "sites": 1708,
-    "matched": 403,
-    "mismatched": 51,
-    "op_empty": 639,
-    "no_recs": 615,
-    "recall": 78,
+    "matched": 449,
+    "mismatched": 62,
+    "op_empty": 1096,
+    "no_recs": 101,
+    "recall": 87,
     "unique_phones": 280,
     "operators": {
       "Светлана": {
-        "matched": 120,
-        "mismatched": 15,
+        "matched": 127,
+        "mismatched": 16,
         "total": 427,
-        "recall": 82,
+        "recall": 86,
         "unique_phones": 136
       },
       "Елена": {
-        "matched": 66,
-        "mismatched": 24,
+        "matched": 87,
+        "mismatched": 39,
         "total": 427,
-        "recall": 52,
+        "recall": 69,
         "unique_phones": 119
       },
       "Диана": {
-        "matched": 112,
-        "mismatched": 4,
+        "matched": 117,
+        "mismatched": 3,
         "total": 427,
-        "recall": 93,
+        "recall": 98,
         "unique_phones": 112
       },
       "Юлия": {
-        "matched": 105,
-        "mismatched": 8,
+        "matched": 118,
+        "mismatched": 4,
         "total": 427,
-        "recall": 86,
+        "recall": 97,
         "unique_phones": 114
       }
     }
@@ -126,39 +126,39 @@
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1720,
-    "matched": 7,
-    "mismatched": 4,
-    "op_empty": 16,
-    "no_recs": 1693,
-    "recall": 2,
+    "matched": 443,
+    "mismatched": 8,
+    "op_empty": 1102,
+    "no_recs": 167,
+    "recall": 98,
     "unique_phones": 210,
     "operators": {
       "Светлана": {
-        "matched": 4,
-        "mismatched": 0,
+        "matched": 136,
+        "mismatched": 2,
         "total": 430,
-        "recall": 3,
+        "recall": 99,
         "unique_phones": 124
       },
       "Елена": {
-        "matched": 0,
-        "mismatched": 0,
+        "matched": 112,
+        "mismatched": 1,
         "total": 430,
-        "recall": 0,
+        "recall": 98,
         "unique_phones": 104
       },
       "Диана": {
-        "matched": 2,
-        "mismatched": 3,
+        "matched": 90,
+        "mismatched": 4,
         "total": 430,
-        "recall": 2,
+        "recall": 96,
         "unique_phones": 87
       },
       "Юлия": {
-        "matched": 1,
+        "matched": 105,
         "mismatched": 1,
         "total": 430,
-        "recall": 1,
+        "recall": 99,
         "unique_phones": 91
       }
     }
@@ -167,18 +167,18 @@
     "date": "2026-03-06",
     "label": "06.03",
     "sites": 1732,
-    "matched": 3,
+    "matched": 525,
     "mismatched": 1,
-    "op_empty": 5,
-    "no_recs": 1723,
-    "recall": 1,
+    "op_empty": 972,
+    "no_recs": 234,
+    "recall": 99,
     "unique_phones": 254,
     "operators": {
       "Светлана": {
-        "matched": 0,
+        "matched": 199,
         "mismatched": 0,
         "total": 433,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 193
       },
       "Елена": {
@@ -189,17 +189,17 @@
         "unique_phones": 0
       },
       "Диана": {
-        "matched": 0,
+        "matched": 141,
         "mismatched": 0,
         "total": 433,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 112
       },
       "Юлия": {
-        "matched": 3,
+        "matched": 185,
         "mismatched": 1,
         "total": 433,
-        "recall": 2,
+        "recall": 98,
         "unique_phones": 180
       }
     }

@@ -3,11 +3,11 @@
     "date": "2026-03-02",
     "label": "02.03",
     "sites": 1716,
-    "matched": 220,
+    "matched": 221,
     "mismatched": 1,
-    "op_empty": 523,
-    "no_recs": 972,
-    "recall": 97,
+    "op_empty": 540,
+    "no_recs": 954,
+    "recall": 98,
     "unique_phones": 162,
     "operators": {
       "Милана": {
@@ -25,10 +25,10 @@
         "unique_phones": 48
       },
       "Лиза": {
-        "matched": 44,
+        "matched": 45,
         "mismatched": 0,
         "total": 429,
-        "recall": 90,
+        "recall": 92,
         "unique_phones": 48
       },
       "Юлия": {
@@ -44,18 +44,18 @@
     "date": "2026-03-03",
     "label": "03.03",
     "sites": 1708,
-    "matched": 481,
-    "mismatched": 9,
-    "op_empty": 1060,
-    "no_recs": 158,
+    "matched": 482,
+    "mismatched": 8,
+    "op_empty": 1139,
+    "no_recs": 79,
     "recall": 98,
     "unique_phones": 271,
     "operators": {
       "Милана": {
-        "matched": 125,
-        "mismatched": 2,
+        "matched": 126,
+        "mismatched": 1,
         "total": 427,
-        "recall": 98,
+        "recall": 99,
         "unique_phones": 118
       },
       "Елена": {
@@ -85,32 +85,32 @@
     "date": "2026-03-04",
     "label": "04.03",
     "sites": 1700,
-    "matched": 483,
-    "mismatched": 10,
-    "op_empty": 947,
-    "no_recs": 260,
+    "matched": 487,
+    "mismatched": 8,
+    "op_empty": 1076,
+    "no_recs": 129,
     "recall": 98,
     "unique_phones": 250,
     "operators": {
       "Милана": {
-        "matched": 133,
-        "mismatched": 1,
+        "matched": 135,
+        "mismatched": 0,
         "total": 425,
-        "recall": 99,
+        "recall": 100,
         "unique_phones": 125
       },
       "Елена": {
-        "matched": 104,
-        "mismatched": 2,
+        "matched": 105,
+        "mismatched": 1,
         "total": 425,
-        "recall": 98,
+        "recall": 99,
         "unique_phones": 97
       },
       "Лиза": {
-        "matched": 106,
+        "matched": 107,
         "mismatched": 7,
         "total": 425,
-        "recall": 93,
+        "recall": 94,
         "unique_phones": 110
       },
       "Юлия": {
@@ -126,39 +126,39 @@
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1716,
-    "matched": 399,
-    "mismatched": 17,
-    "op_empty": 766,
-    "no_recs": 534,
-    "recall": 95,
+    "matched": 407,
+    "mismatched": 12,
+    "op_empty": 1061,
+    "no_recs": 236,
+    "recall": 97,
     "unique_phones": 249,
     "operators": {
       "Милана": {
-        "matched": 120,
-        "mismatched": 3,
+        "matched": 123,
+        "mismatched": 1,
         "total": 429,
-        "recall": 97,
+        "recall": 99,
         "unique_phones": 113
       },
       "Елена": {
-        "matched": 79,
-        "mismatched": 4,
+        "matched": 81,
+        "mismatched": 2,
         "total": 429,
-        "recall": 95,
+        "recall": 98,
         "unique_phones": 78
       },
       "Лиза": {
-        "matched": 64,
+        "matched": 65,
         "mismatched": 7,
         "total": 429,
-        "recall": 88,
+        "recall": 89,
         "unique_phones": 69
       },
       "Юлия": {
-        "matched": 136,
-        "mismatched": 3,
+        "matched": 138,
+        "mismatched": 2,
         "total": 429,
-        "recall": 97,
+        "recall": 99,
         "unique_phones": 129
       }
     }
@@ -167,39 +167,39 @@
     "date": "2026-03-06",
     "label": "06.03",
     "sites": 1724,
-    "matched": 1,
-    "mismatched": 0,
-    "op_empty": 0,
-    "no_recs": 1723,
-    "recall": 0,
+    "matched": 283,
+    "mismatched": 3,
+    "op_empty": 1046,
+    "no_recs": 392,
+    "recall": 99,
     "unique_phones": 161,
     "operators": {
       "Милана": {
-        "matched": 0,
+        "matched": 67,
         "mismatched": 0,
         "total": 431,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 65
       },
       "Елена": {
-        "matched": 1,
+        "matched": 69,
         "mismatched": 0,
         "total": 431,
-        "recall": 1,
+        "recall": 100,
         "unique_phones": 67
       },
       "Лиза": {
-        "matched": 0,
-        "mismatched": 0,
+        "matched": 71,
+        "mismatched": 3,
         "total": 431,
-        "recall": 0,
+        "recall": 96,
         "unique_phones": 73
       },
       "Юлия": {
-        "matched": 0,
+        "matched": 76,
         "mismatched": 0,
         "total": 431,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 73
       }
     }

@@ -5,8 +5,8 @@
     "sites": 1716,
     "matched": 165,
     "mismatched": 1,
-    "op_empty": 551,
-    "no_recs": 999,
+    "op_empty": 574,
+    "no_recs": 976,
     "recall": 99,
     "unique_phones": 110,
     "operators": {
@@ -44,11 +44,11 @@
     "date": "2026-03-03",
     "label": "03.03",
     "sites": 1708,
-    "matched": 451,
-    "mismatched": 10,
-    "op_empty": 1006,
-    "no_recs": 241,
-    "recall": 97,
+    "matched": 462,
+    "mismatched": 1,
+    "op_empty": 1124,
+    "no_recs": 121,
+    "recall": 100,
     "unique_phones": 255,
     "operators": {
       "Милана": {
@@ -59,17 +59,17 @@
         "unique_phones": 94
       },
       "Кристина": {
-        "matched": 107,
-        "mismatched": 9,
+        "matched": 116,
+        "mismatched": 1,
         "total": 427,
-        "recall": 91,
+        "recall": 99,
         "unique_phones": 102
       },
       "Наталья": {
-        "matched": 108,
-        "mismatched": 1,
+        "matched": 110,
+        "mismatched": 0,
         "total": 427,
-        "recall": 98,
+        "recall": 100,
         "unique_phones": 100
       },
       "Анастасия": {
@@ -85,39 +85,39 @@
     "date": "2026-03-04",
     "label": "04.03",
     "sites": 1708,
-    "matched": 376,
-    "mismatched": 16,
-    "op_empty": 961,
-    "no_recs": 355,
-    "recall": 95,
+    "matched": 392,
+    "mismatched": 2,
+    "op_empty": 1150,
+    "no_recs": 164,
+    "recall": 99,
     "unique_phones": 188,
     "operators": {
       "Милана": {
-        "matched": 74,
-        "mismatched": 8,
+        "matched": 82,
+        "mismatched": 0,
         "total": 427,
-        "recall": 90,
+        "recall": 100,
         "unique_phones": 64
       },
       "Кристина": {
-        "matched": 88,
-        "mismatched": 2,
+        "matched": 91,
+        "mismatched": 0,
         "total": 427,
-        "recall": 97,
+        "recall": 100,
         "unique_phones": 77
       },
       "Наталья": {
-        "matched": 106,
-        "mismatched": 5,
+        "matched": 109,
+        "mismatched": 2,
         "total": 427,
-        "recall": 95,
+        "recall": 98,
         "unique_phones": 92
       },
       "Анастасия": {
-        "matched": 108,
-        "mismatched": 1,
+        "matched": 110,
+        "mismatched": 0,
         "total": 427,
-        "recall": 98,
+        "recall": 100,
         "unique_phones": 95
       }
     }
@@ -126,39 +126,39 @@
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1716,
-    "matched": 358,
-    "mismatched": 21,
-    "op_empty": 588,
-    "no_recs": 749,
-    "recall": 88,
+    "matched": 399,
+    "mismatched": 6,
+    "op_empty": 1037,
+    "no_recs": 274,
+    "recall": 98,
     "unique_phones": 228,
     "operators": {
       "Милана": {
-        "matched": 82,
-        "mismatched": 4,
+        "matched": 89,
+        "mismatched": 2,
         "total": 429,
-        "recall": 89,
+        "recall": 97,
         "unique_phones": 87
       },
       "Кристина": {
-        "matched": 78,
-        "mismatched": 8,
+        "matched": 98,
+        "mismatched": 0,
         "total": 429,
-        "recall": 80,
+        "recall": 100,
         "unique_phones": 91
       },
       "Наталья": {
-        "matched": 96,
-        "mismatched": 8,
+        "matched": 107,
+        "mismatched": 4,
         "total": 429,
-        "recall": 86,
+        "recall": 96,
         "unique_phones": 105
       },
       "Анастасия": {
-        "matched": 102,
-        "mismatched": 1,
+        "matched": 105,
+        "mismatched": 0,
         "total": 429,
-        "recall": 97,
+        "recall": 100,
         "unique_phones": 97
       }
     }
@@ -167,39 +167,39 @@
     "date": "2026-03-06",
     "label": "06.03",
     "sites": 1668,
-    "matched": 0,
+    "matched": 349,
     "mismatched": 0,
-    "op_empty": 0,
-    "no_recs": 1668,
-    "recall": 0,
+    "op_empty": 855,
+    "no_recs": 464,
+    "recall": 100,
     "unique_phones": 217,
     "operators": {
       "Милана": {
-        "matched": 0,
+        "matched": 72,
         "mismatched": 0,
         "total": 417,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 68
       },
       "Кристина": {
-        "matched": 0,
+        "matched": 77,
         "mismatched": 0,
         "total": 417,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 75
       },
       "Наталья": {
-        "matched": 0,
+        "matched": 105,
         "mismatched": 0,
         "total": 417,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 98
       },
       "Анастасия": {
-        "matched": 0,
+        "matched": 95,
         "mismatched": 0,
         "total": 417,
-        "recall": 0,
+        "recall": 100,
         "unique_phones": 90
       }
     }
