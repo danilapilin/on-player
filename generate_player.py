@@ -393,6 +393,15 @@ def main():
             gdata[date_info["iso"]] = all_data
         groups_data[gn] = gdata
 
+    # Invalidate empty cache entries for recent dates — API may have data now
+    today = datetime.now()
+    stale_cutoff = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+    stale_keys = [k for k, v in cache.items() if not v and k.split(":")[1] >= stale_cutoff]
+    if stale_keys:
+        for k in stale_keys:
+            del cache[k]
+        log(f"Invalidated {len(stale_keys)} empty cache entries for dates >= {stale_cutoff}")
+
     # Phase 2: Collect ALL needed pairs across groups, fetch from API
     log("\n=== Phase 2: Fetching recordings from API ===")
     all_needed = set()
