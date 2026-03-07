@@ -40,6 +40,12 @@ jobs:
           path: recordings_cache.json
           key: recordings-cache-${{ github.run_id }}
 
+      - name: Run AI matching
+        run: python ai_matching.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        timeout-minutes: 15
+
       - name: Generate analytics screenshot
         run: |
           pip install playwright

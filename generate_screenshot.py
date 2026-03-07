@@ -37,7 +37,8 @@ def build_html(groups_data):
     # aggregate by date across all groups
     by_date = {}
     for date in all_dates:
-        a = {"sites": 0, "matched": 0, "mismatched": 0, "op_empty": 0, "no_recs": 0, "uph": 0}
+        a = {"sites": 0, "matched": 0, "mismatched": 0, "op_empty": 0, "no_recs": 0, "uph": 0,
+             "ai_agree": 0, "ai_disagree": 0, "ai_only": 0, "ai_op_only": 0, "ai_processed": 0}
         for g in groups_data:
             d = next((x for x in groups_data[g] if x["date"] == date), None)
             if d:
@@ -47,8 +48,16 @@ def build_html(groups_data):
                 a["op_empty"] += d["op_empty"]
                 a["no_recs"] += d["no_recs"]
                 a["uph"] += d.get("unique_phones", 0)
+                ai = d.get("ai", {})
+                a["ai_agree"] += ai.get("agree", 0)
+                a["ai_disagree"] += ai.get("disagree", 0)
+                a["ai_only"] += ai.get("ai_only", 0)
+                a["ai_op_only"] += ai.get("op_only", 0)
+                a["ai_processed"] += ai.get("processed", 0)
         of = a["matched"] + a["mismatched"]
         a["recall"] = round(a["matched"] / of * 100) if of else 0
+        ai_decided = a["ai_agree"] + a["ai_disagree"]
+        a["ai_accuracy"] = round(a["ai_agree"] / ai_decided * 100) if ai_decided else 0
         by_date[date] = a
 
     # report = previous day (not today's partial data)
@@ -81,6 +90,14 @@ def build_html(groups_data):
         ("", last["uph"], "Уник. номеров", dlt(last["uph"], prev["uph"] if prev else None, True)),
     ]
 
+    # добавляем AI Accuracy если есть данные
+    if last.get("ai_processed"):
+        boxes.append(
+            ("#a29bfe", f'{last["ai_accuracy"]}%', "AI Accuracy",
+             dlt(last["ai_accuracy"], prev["ai_accuracy"] if prev else None, True)),
+        )
+
+    cols = len(boxes)
     stat_html = ""
     for color, val, lbl, delta in boxes:
         c = color or "#0984e3"
@@ -106,15 +123,22 @@ def build_html(groups_data):
   <span style="width:50px;font-size:12px;font-weight:600;color:#2d3436;flex-shrink:0">{d["sites"]}</span>
 </div>'''
 
+    # check if any date has AI data
+    has_ai = any(d.get("ai_processed") for d in by_date.values())
+
     # detail table rows
     rows = ""
-    tS = tM = tMis = tOE = tNR = tUph = 0
+    tS = tM = tMis = tOE = tNR = tUph = tAiAgree = tAiDisagree = 0
     td = 'style="padding:8px 12px;border-bottom:1px solid #f0f0f0"'
     tdr = f'{td[:-1]};text-align:right"'
     for date in all_dates:
         d = by_date[date]
         tS += d["sites"]; tM += d["matched"]; tMis += d["mismatched"]
         tOE += d["op_empty"]; tNR += d["no_recs"]; tUph += d["uph"]
+        tAiAgree += d["ai_agree"]; tAiDisagree += d["ai_disagree"]
+        ai_col = ""
+        if has_ai:
+            ai_col = f'<td {tdr[:-1]};font-weight:600;color:{rc_color(d["ai_accuracy"]) if d["ai_processed"] else "#b2bec3"}">{d["ai_accuracy"]}%</td>' if d["ai_processed"] else f'<td {tdr}>—</td>'
         rows += f'''<tr>
   <td {td}>{dl[date]}</td><td {tdr}>{d["sites"]}</td>
   <td {tdr[:-1]};color:#00b894;font-weight:600">{d["matched"]}</td>
@@ -122,14 +146,18 @@ def build_html(groups_data):
   <td {tdr[:-1]};color:#e17055;font-weight:600">{d["op_empty"]}</td>
   <td {tdr}>{d["no_recs"]}</td>
   <td {tdr[:-1]};font-weight:700;color:{rc_color(d["recall"])}">{d["recall"]}%</td>
-  <td {tdr}>{d["uph"]}</td></tr>'''
+  <td {tdr}>{d["uph"]}</td>{ai_col}</tr>'''
 
     tRc = round(tM / (tM + tMis) * 100) if (tM + tMis) else 0
+    tAiAcc = round(tAiAgree / (tAiAgree + tAiDisagree) * 100) if (tAiAgree + tAiDisagree) else 0
+    ai_total = f'<td {tdr[:-1]};color:{rc_color(tAiAcc)}">{tAiAcc}%</td>' if has_ai else ""
     rows += f'''<tr style="font-weight:700;border-top:2px solid #dfe6e9">
   <td style="padding:8px 12px">Итого</td><td {tdr}>{tS}</td>
   <td {tdr[:-1]};color:#00b894">{tM}</td><td {tdr[:-1]};color:#d63031">{tMis}</td>
   <td {tdr[:-1]};color:#e17055">{tOE}</td><td {tdr}>{tNR}</td>
-  <td {tdr}>{tRc}%</td><td {tdr}>{tUph}</td></tr>'''
+  <td {tdr}>{tRc}%</td><td {tdr}>{tUph}</td>{ai_total}</tr>'''
+
+    ai_header = '<th class="r">AI</th>' if has_ai else ""
 
     return f'''<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
@@ -145,7 +173,7 @@ th.r{{text-align:right}}
 </style></head><body>
 <div class="card">
   <h2>Сводка за {last_lbl}</h2>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px">{stat_html}</div>
+  <div style="display:grid;grid-template-columns:repeat({cols},1fr);gap:10px">{stat_html}</div>
 </div>
 <div class="card">
   <h2>Распределение статусов по дням</h2>
@@ -158,7 +186,7 @@ th.r{{text-align:right}}
   {bars_html}
   <h3>Детализация по дням</h3>
   <table>
-    <tr><th>Дата</th><th class="r">Сайтов</th><th class="r">Совпал</th><th class="r">Не совпал</th><th class="r">Оп. пусто</th><th class="r">Нет записей</th><th class="r">Recall</th><th class="r">Уник. номеров</th></tr>
+    <tr><th>Дата</th><th class="r">Сайтов</th><th class="r">Совпал</th><th class="r">Не совпал</th><th class="r">Оп. пусто</th><th class="r">Нет записей</th><th class="r">Recall</th><th class="r">Уник. номеров</th>{ai_header}</tr>
     {rows}
   </table>
 </div>

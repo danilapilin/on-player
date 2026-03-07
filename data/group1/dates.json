@@ -161,6 +161,14 @@
         "recall": 1,
         "unique_phones": 86
       }
+    },
+    "ai": {
+      "processed": 13,
+      "agree": 6,
+      "disagree": 0,
+      "ai_only": 2,
+      "op_only": 5,
+      "accuracy": 100
     }
   },
   {
@@ -202,6 +210,14 @@
         "recall": 0,
         "unique_phones": 0
       }
+    },
+    "ai": {
+      "processed": 6,
+      "agree": 0,
+      "disagree": 0,
+      "ai_only": 6,
+      "op_only": 0,
+      "accuracy": 0
     }
   }
 ]

@@ -1,0 +1,347 @@
+"""
+AI Shadow Matching: анализ транскрипций звонков с помощью Claude.
+
+Для каждой строки с записями AI определяет, какой callerid — обратный звонок
+с сайта. Результат сравнивается с оператором (agree/disagree/ai_only/op_only).
+
+Запуск: python ai_matching.py [--dry-run]
+"""
+
+import asyncio
+import json
+import logging
+import os
+import sys
+from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
+OUTPUT_DIR = "data"
+NUM_GROUPS = 4
+BATCH_SIZE = 10
+MAX_CONCURRENT = 5
+MAX_RETRIES = 3
+
+SYSTEM_PROMPT = (
+    "Ты анализируешь записи телефонных звонков. Клиент оставил номер в форме "
+    "обратного звонка на сайте. Определи, какая из записей — обратный звонок "
+    "с этого сайта.\n\n"
+    "Признаки обратного звонка:\n"
+    "- Упоминание компании, бренда или услуги, связанной с сайтом/нишей\n"
+    "- Фразы: 'вы оставляли заявку', 'вы обращались', 'по вашей заявке с сайта'\n"
+    "- Тематика разговора совпадает с нишей клиента\n\n"
+    "Для каждого элемента верни JSON массив объектов:\n"
+    '[{"id": <int>, "callerid": "<номер>" или "", "reasoning": "<1 предложение>"}]\n\n'
+    "Если ни одна запись не подходит — верни callerid как пустую строку.\n"
+    "Отвечай ТОЛЬКО JSON массивом, без markdown и пояснений."
+)
+
+
+def load_dates_json(group_num):
+    path = os.path.join(OUTPUT_DIR, f"group{group_num}", "dates.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def load_date_data(group_num, date_iso):
+    path = os.path.join(OUTPUT_DIR, f"group{group_num}", f"{date_iso}.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_date_data(group_num, date_iso, data):
+    path = os.path.join(OUTPUT_DIR, f"group{group_num}", f"{date_iso}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def save_dates_json(group_num, dates):
+    path = os.path.join(OUTPUT_DIR, f"group{group_num}", "dates.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(dates, f, ensure_ascii=False, indent=2)
+
+
+def get_target_date(dates):
+    """Предпоследняя дата — вчерашние полные данные."""
+    if len(dates) >= 2:
+        return dates[-2]["date"]
+    return dates[-1]["date"] if dates else None
+
+
+def needs_processing(row):
+    """Строка подходит для AI: есть записи с транскрипциями и ещё не обработана."""
+    if row.get("ai_phone") is not None:
+        return False
+    if not row.get("recs"):
+        return False
+    # хотя бы одна запись с непустой транскрипцией
+    return any(r.get("transcript", "").strip() for r in row["recs"])
+
+
+def build_batch_prompt(batch):
+    """Формирует пользовательский промпт для батча строк."""
+    items = []
+    for i, row in enumerate(batch):
+        recs = []
+        for r in row["recs"]:
+            if r.get("transcript", "").strip():
+                recs.append({
+                    "callerid": r["callerid"],
+                    "transcript": r["transcript"][:300],
+                })
+        items.append({
+            "id": i,
+            "site": row["site"],
+            "nisha": row.get("nisha", ""),
+            "client": row.get("client", ""),
+            "recs": recs,
+        })
+    return json.dumps(items, ensure_ascii=False)
+
+
+def parse_ai_response(text, batch_size):
+    """Парсит JSON ответ от Claude. Возвращает список {id, callerid, reasoning}."""
+    # убираем markdown обёртку если есть
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        text = "\n".join(lines[1:])
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+    results = json.loads(text)
+
+    if not isinstance(results, list):
+        raise ValueError("Expected JSON array")
+
+    # проверяем что все id в диапазоне
+    parsed = []
+    for item in results:
+        idx = item.get("id")
+        if idx is None or not (0 <= idx < batch_size):
+            continue
+        parsed.append({
+            "id": idx,
+            "callerid": str(item.get("callerid", "")).strip(),
+            "reasoning": str(item.get("reasoning", "")).strip()[:200],
+        })
+    return parsed
+
+
+def compute_ai_vs_op(row):
+    """Сравнивает AI результат с оператором."""
+    ai_phone = row.get("ai_phone", "")
+    op_phone = row.get("operator_phone", "")
+
+    if not ai_phone and not op_phone:
+        return "both_empty"
+    if not ai_phone and op_phone:
+        return "op_only"
+    if ai_phone and not op_phone:
+        return "ai_only"
+
+    # оба есть — сравниваем (частичное совпадение, как в calc_status)
+    if op_phone in ai_phone or ai_phone in op_phone:
+        return "agree"
+    return "disagree"
+
+
+async def process_batch(client, batch, semaphore, dry_run=False):
+    """Отправляет батч в Claude и возвращает распарсенные результаты."""
+    prompt = build_batch_prompt(batch)
+
+    if dry_run:
+        log.info("DRY RUN batch (%d items), prompt length: %d", len(batch), len(prompt))
+        return []
+
+    async with semaphore:
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=2048,
+                    system=SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = response.content[0].text
+                return parse_ai_response(text, len(batch))
+            except json.JSONDecodeError as e:
+                log.warning("Bad JSON from AI (attempt %d): %s", attempt + 1, e)
+                if attempt == MAX_RETRIES - 1:
+                    return []
+            except Exception as e:
+                wait = 2 ** (attempt + 1)
+                log.warning("API error (attempt %d): %s, retry in %ds", attempt + 1, e, wait)
+                if attempt == MAX_RETRIES - 1:
+                    return []
+                await asyncio.sleep(wait)
+    return []
+
+
+async def process_group(client, group_num, target_date, dry_run=False):
+    """Обрабатывает все строки одной группы за целевую дату."""
+    data = load_date_data(group_num, target_date)
+    if not data:
+        log.warning("Group %d: no data for %s", group_num, target_date)
+        return None
+
+    # фильтруем строки для обработки
+    to_process = [(i, row) for i, row in enumerate(data) if needs_processing(row)]
+    if not to_process:
+        log.info("Group %d: all rows already processed or no eligible rows", group_num)
+        return data
+
+    log.info("Group %d: %d rows to process out of %d total", group_num, len(to_process), len(data))
+
+    # батчим
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+    batches = []
+    for i in range(0, len(to_process), BATCH_SIZE):
+        chunk = to_process[i:i + BATCH_SIZE]
+        batches.append(chunk)
+
+    processed = 0
+    for batch_items in batches:
+        indices = [idx for idx, _ in batch_items]
+        rows = [row for _, row in batch_items]
+
+        results = await process_batch(client, rows, semaphore, dry_run)
+
+        # применяем результаты
+        result_map = {r["id"]: r for r in results}
+        for batch_idx, (data_idx, row) in enumerate(batch_items):
+            ai = result_map.get(batch_idx)
+            if ai:
+                data[data_idx]["ai_phone"] = ai["callerid"]
+                data[data_idx]["ai_reasoning"] = ai["reasoning"]
+            else:
+                data[data_idx]["ai_phone"] = ""
+                data[data_idx]["ai_reasoning"] = ""
+            data[data_idx]["ai_vs_op"] = compute_ai_vs_op(data[data_idx])
+
+        processed += len(batch_items)
+        if processed % 100 == 0 or processed == len(to_process):
+            log.info("Group %d: %d/%d processed", group_num, processed, len(to_process))
+
+    # помечаем строки без записей как skip
+    for row in data:
+        if "ai_vs_op" not in row:
+            row["ai_phone"] = ""
+            row["ai_reasoning"] = ""
+            row["ai_vs_op"] = "skip"
+
+    if not dry_run:
+        save_date_data(group_num, target_date, data)
+        log.info("Group %d: saved %s.json", group_num, target_date)
+
+    return data
+
+
+def compute_ai_stats(data):
+    """Считает AI агрегаты по обработанным данным."""
+    stats = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
+
+    for row in data:
+        vs = row.get("ai_vs_op", "skip")
+        if vs == "skip" or vs == "both_empty":
+            continue
+        stats["processed"] += 1
+        if vs in stats:
+            stats[vs] += 1
+
+    # accuracy: agree / (agree + disagree) — только по строкам где оба нашли
+    decided = stats["agree"] + stats["disagree"]
+    stats["accuracy"] = round(stats["agree"] / decided * 100) if decided else 0
+
+    return stats
+
+
+def update_dates_json(group_num, target_date, ai_stats):
+    """Добавляет AI статистику в dates.json."""
+    dates = load_dates_json(group_num)
+    if not dates:
+        return
+
+    for d in dates:
+        if d["date"] == target_date:
+            d["ai"] = ai_stats
+            break
+
+    save_dates_json(group_num, dates)
+    log.info("Group %d: updated dates.json with AI stats", group_num)
+
+
+async def main():
+    dry_run = "--dry-run" in sys.argv
+
+    # --date YYYY-MM-DD для указания конкретной даты
+    explicit_date = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--date" and i + 1 < len(sys.argv):
+            explicit_date = sys.argv[i + 1]
+
+    # проверяем наличие API ключа
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key and not dry_run:
+        log.warning("ANTHROPIC_API_KEY not set, skipping AI matching")
+        return
+
+    if dry_run:
+        log.info("=== DRY RUN MODE ===")
+        client = None
+    else:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+
+    # определяем целевую дату (одна и та же для всех групп)
+    dates = load_dates_json(1)
+    if not dates:
+        log.error("No dates.json found for group 1")
+        return
+
+    target_date = explicit_date or get_target_date(dates)
+    log.info("Target date: %s", target_date)
+
+    total_stats = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
+
+    for group_num in range(1, NUM_GROUPS + 1):
+        data = await process_group(client, group_num, target_date, dry_run)
+        if data is None:
+            continue
+
+        ai_stats = compute_ai_stats(data)
+        log.info(
+            "Group %d AI stats: processed=%d, agree=%d, disagree=%d, "
+            "ai_only=%d, op_only=%d, accuracy=%d%%",
+            group_num, ai_stats["processed"], ai_stats["agree"],
+            ai_stats["disagree"], ai_stats["ai_only"], ai_stats["op_only"],
+            ai_stats["accuracy"],
+        )
+
+        if not dry_run:
+            update_dates_json(group_num, target_date, ai_stats)
+
+        for k in total_stats:
+            total_stats[k] += ai_stats.get(k, 0)
+
+    decided = total_stats["agree"] + total_stats["disagree"]
+    total_acc = round(total_stats["agree"] / decided * 100) if decided else 0
+    log.info(
+        "=== TOTAL: processed=%d, agree=%d, disagree=%d, accuracy=%d%% ===",
+        total_stats["processed"], total_stats["agree"],
+        total_stats["disagree"], total_acc,
+    )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

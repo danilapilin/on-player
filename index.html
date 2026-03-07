@@ -39,6 +39,11 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .badge.red { background:#ffe8e8; color:#d63031; }
 .badge.yellow { background:#fff8e8; color:#e17055; }
 .badge.gray { background:#f0f0f0; color:#636e72; }
+.badge.ai-agree { background:#e8f0ff; color:#0984e3; }
+.badge.ai-disagree { background:#ffe8e8; color:#d63031; }
+.badge.ai-only { background:#e8f0ff; color:#a29bfe; }
+.badge.ai-op-only { background:#fff0f0; color:#e17055; }
+.ai-reasoning { font-size:12px; color:#636e72; margin-top:6px; padding:8px 12px; background:#f8f9fa; border-radius:6px; border-left:3px solid #a29bfe; }
 .meta { display:flex; gap:20px; font-size:12px; color:#636e72; flex-wrap:wrap; margin-bottom:10px; }
 .meta span { display:flex; align-items:center; gap:4px; }
 .recordings { margin-top:8px; }
@@ -128,6 +133,13 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
       <option value="mismatched">Не совпал</option>
       <option value="op-empty">Оператор пусто</option>
       <option value="no-recs">Нет записей</option>
+    </select>
+    <select id="aiFilter">
+      <option value="all">AI: все</option>
+      <option value="agree">AI: совпал</option>
+      <option value="disagree">AI: расхождение</option>
+      <option value="ai_only">AI: только AI</option>
+      <option value="op_only">AI: только оператор</option>
     </select>
     <div class="count" id="count"></div>
   </div>
@@ -231,10 +243,21 @@ function updateStatusCounts() {
   sel.options[4].textContent = `Нет записей (${(c["Нет записей"]||0)+(c["Оператор нашёл, записей нет"]||0)})`;
 }
 
+function aiInfo(vs) {
+  const map = {
+    "agree":      { badge: "ai-agree",    label: "AI \u2714" },
+    "disagree":   { badge: "ai-disagree", label: "AI \u2716" },
+    "ai_only":    { badge: "ai-only",     label: "AI only" },
+    "op_only":    { badge: "ai-op-only",  label: "Op only" },
+  };
+  return map[vs] || null;
+}
+
 function applyFilters() {
   const query = document.getElementById("search").value.toLowerCase();
   const filter = document.getElementById("filter").value;
   const opFilter = document.getElementById("opFilter").value;
+  const aiFilterVal = document.getElementById("aiFilter").value;
 
   FILTERED = DATA.filter(d => {
     if (opFilter !== "all" && d.operator !== opFilter) return false;
@@ -242,8 +265,10 @@ function applyFilters() {
     if (filter === "mismatched" && d.status !== "Не совпал") return false;
     if (filter === "op-empty" && d.status !== "Оператор пусто, есть звонки") return false;
     if (filter === "no-recs" && !d.status.includes("Нет записей") && d.status !== "Оператор нашёл, записей нет") return false;
+    if (aiFilterVal !== "all" && d.ai_vs_op !== aiFilterVal) return false;
     if (query) {
       const h = [d.site, d.phone, d.operator_phone, d.nisha, d.client, d.operator,
+        d.ai_phone || "", d.ai_reasoning || "",
         ...d.recs.map(r => r.callerid + " " + r.transcript)].join(" ").toLowerCase();
       if (!h.includes(query)) return false;
     }
@@ -259,17 +284,23 @@ function applyFilters() {
 function renderRow(d, globalIdx) {
   const si = statusInfo(d.status);
   const opColor = OP_COLORS[d.operator] || "#636e72";
+  const ai = aiInfo(d.ai_vs_op);
+  const aiBadgeHtml = ai ? `<span class="badge ${ai.badge}">${ai.label}</span>` : "";
+
   const recsHtml = d.recs.length ? d.recs.map((r, ri) => `
     <div class="rec">
       <div class="rec-info">
         <span class="rec-callerid">${r.callerid}</span>
         <span class="rec-conf">&nbsp;&middot;&nbsp;${r.conf}</span>
+        ${d.ai_phone && r.callerid === d.ai_phone ? '<span style="font-size:10px;color:#a29bfe;font-weight:600;margin-left:4px">AI</span>' : ""}
         <div class="rec-text" id="txt-${globalIdx}-${ri}">${escHtml(r.transcript)}</div>
         ${r.transcript.length > 120 ? `<button class="expand-btn" onclick="toggleText(${globalIdx},${ri})">показать всё</button>` : ""}
       </div>
       ${r.audio ? `<button class="audio-btn" onclick="playAudio(this,'${escAttr(r.audio)}')">&#9654;</button>` : ""}
     </div>
   `).join("") : '<div style="font-size:12px;color:#b2bec3;padding:8px">Нет записей с речью</div>';
+
+  const aiReasonHtml = d.ai_reasoning ? `<div class="ai-reasoning">AI: ${escHtml(d.ai_reasoning)}${d.ai_phone ? " (" + d.ai_phone + ")" : ""}</div>` : "";
 
   return `
     <div class="row ${si.cls}">
@@ -278,13 +309,15 @@ function renderRow(d, globalIdx) {
         <span class="op-badge" style="background:${opColor}">${escHtml(d.operator)}</span>
         <span class="site">${escHtml(d.site)}</span>
         <span class="badge ${si.badge}">${si.label}</span>
+        ${aiBadgeHtml}
       </div>
       <div class="meta">
         <span>Тел: <b>${d.phone}</b></span>
-        <span>Оператор: <b>${d.operator_phone || "—"}</b></span>
+        <span>Оператор: <b>${d.operator_phone || "\u2014"}</b></span>
         <span>Записей: ${d.total_recs} (sil: ${d.silence}, речь: ${d.recs.length})</span>
-        <span>Ниша: ${d.nisha || "—"}</span>
+        <span>Ниша: ${d.nisha || "\u2014"}</span>
       </div>
+      ${aiReasonHtml}
       <div class="recordings">${recsHtml}</div>
     </div>`;
 }
@@ -377,12 +410,23 @@ function renderAnalytics() {
   // aggregate by date across all groups
   const byDate = {};
   allDates.forEach(date => {
-    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0, uph:0 };
+    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0, uph:0,
+                ai_agree:0, ai_disagree:0, ai_only:0, ai_op_only:0, ai_processed:0 };
     gNums.forEach(g => {
       const d = ALL_GROUPS[g].find(x => x.date === date);
-      if (d) { a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched; a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; a.uph+=(d.unique_phones||0); }
+      if (d) {
+        a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched;
+        a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; a.uph+=(d.unique_phones||0);
+        if (d.ai) {
+          a.ai_agree+=(d.ai.agree||0); a.ai_disagree+=(d.ai.disagree||0);
+          a.ai_only+=(d.ai.ai_only||0); a.ai_op_only+=(d.ai.op_only||0);
+          a.ai_processed+=(d.ai.processed||0);
+        }
+      }
     });
     a.recall = (a.matched+a.mismatched) ? Math.round(a.matched/(a.matched+a.mismatched)*100) : 0;
+    const aiDec = a.ai_agree + a.ai_disagree;
+    a.ai_accuracy = aiDec ? Math.round(a.ai_agree/aiDec*100) : 0;
     byDate[date] = a;
   });
 
@@ -412,8 +456,11 @@ function renderAnalytics() {
   }
 
   // ── Section 1: Daily summary (latest day with deltas) ──
+  const hasAi = last.ai_processed > 0;
+  const aiBox = hasAi ? `<div class="stat-box" style="border:2px solid #a29bfe"><div class="val" style="color:#a29bfe">${last.ai_accuracy}%</div><div class="lbl">AI Accuracy</div>${dlt(last.ai_accuracy,prev?.ai_accuracy,true)}</div>` : '';
+  const gridCols = hasAi ? 8 : 7;
   let html = `<div class="card"><h2>Сводка за ${lastLbl}</h2>
-    <div class="stat-grid">
+    <div class="stat-grid" style="grid-template-columns:repeat(${gridCols},1fr)">
       <div class="stat-box"><div class="val">${last.sites}</div><div class="lbl">Проверок</div>${dlt(last.sites,prev?.sites,true)}</div>
       <div class="stat-box green"><div class="val">${last.matched}</div><div class="lbl">Совпал</div>${dlt(last.matched,prev?.matched,true)}</div>
       <div class="stat-box red"><div class="val">${last.mismatched}</div><div class="lbl">Не совпал</div>${dlt(last.mismatched,prev?.mismatched,false)}</div>
@@ -421,6 +468,7 @@ function renderAnalytics() {
       <div class="stat-box"><div class="val">${last.no_recs}</div><div class="lbl">Нет записей</div></div>
       <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall</div>${dlt(last.recall,prev?.recall,true)}</div>
       <div class="stat-box"><div class="val">${last.uph}</div><div class="lbl">Уник. номеров</div>${dlt(last.uph,prev?.uph,true)}</div>
+      ${aiBox}
     </div></div>`;
 
   // ── Section 2: Status distribution by days (all groups combined) ──
@@ -441,25 +489,33 @@ function renderAnalytics() {
   });
 
   // detail table
+  const anyAi = allDates.some(date => byDate[date].ai_processed > 0);
+  const aiTh = anyAi ? '<th class="num">AI</th>' : '';
   html += `<h3 style="margin:20px 0 8px">Детализация по дням</h3><table class="tbl">
-    <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th><th class="num">Уник. номеров</th></tr>`;
-  let tS=0,tM=0,tMis=0,tOE=0,tNR=0,tUph=0;
+    <tr><th>Дата</th><th class="num">Сайтов</th><th class="num">Совпал</th><th class="num">Не совпал</th><th class="num">Оп. пусто</th><th class="num">Нет записей</th><th class="num">Recall</th><th class="num">Уник. номеров</th>${aiTh}</tr>`;
+  let tS=0,tM=0,tMis=0,tOE=0,tNR=0,tUph=0,tAiA=0,tAiD=0;
   allDates.forEach(date => {
     const d = byDate[date]; tS+=d.sites; tM+=d.matched; tMis+=d.mismatched; tOE+=d.op_empty; tNR+=d.no_recs; tUph+=d.uph;
+    tAiA+=d.ai_agree; tAiD+=d.ai_disagree;
+    const aiTd = anyAi ? (d.ai_processed > 0
+      ? `<td class="num" style="font-weight:600;color:${rcColor(d.ai_accuracy)}">${d.ai_accuracy}%</td>`
+      : '<td class="num">\u2014</td>') : '';
     html += `<tr><td>${dl[date]}</td><td class="num">${d.sites}</td>
       <td class="num" style="color:#00b894;font-weight:600">${d.matched}</td>
       <td class="num" style="color:#d63031;font-weight:600">${d.mismatched}</td>
       <td class="num" style="color:#e17055;font-weight:600">${d.op_empty}</td>
       <td class="num">${d.no_recs}</td>
       <td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td>
-      <td class="num">${d.uph}</td></tr>`;
+      <td class="num">${d.uph}</td>${aiTd}</tr>`;
   });
   const tRc = (tM+tMis)?Math.round(tM/(tM+tMis)*100):0;
+  const tAiAcc = (tAiA+tAiD)?Math.round(tAiA/(tAiA+tAiD)*100):0;
+  const aiTotal = anyAi ? `<td class="num" style="color:${rcColor(tAiAcc)}">${tAiAcc}%</td>` : '';
   html += `<tr style="font-weight:700;border-top:2px solid #dfe6e9">
     <td>Итого</td><td class="num">${tS}</td>
     <td class="num" style="color:#00b894">${tM}</td><td class="num" style="color:#d63031">${tMis}</td>
     <td class="num" style="color:#e17055">${tOE}</td><td class="num">${tNR}</td>
-    <td class="num">${tRc}%</td><td class="num">${tUph}</td></tr></table></div>`;
+    <td class="num">${tRc}%</td><td class="num">${tUph}</td>${aiTotal}</tr></table></div>`;
 
   // ── Section 3: Per group (stacked bars + operators) ──
   gNums.forEach(g => {
@@ -561,10 +617,14 @@ async function loadDate(dateIso) {
 
     const d = DATES.find(x => x.date === dateIso);
     if (d) {
+      const aiLabel = d.ai ? ` · AI ${d.ai.accuracy}%` : '';
       document.getElementById("subtitle").textContent =
-        `${d.label} · Группа ${currentGroup} · ${d.sites} сайтов · Recall ${d.recall}%`;
-      document.getElementById("dateStats").innerHTML =
-        `<span>Совпал: ${d.matched}</span><span>Не совпал: ${d.mismatched}</span><span>Оп. пусто: ${d.op_empty}</span><span>Нет записей: ${d.no_recs}</span>`;
+        `${d.label} · Группа ${currentGroup} · ${d.sites} сайтов · Recall ${d.recall}%${aiLabel}`;
+      let statsHtml = `<span>Совпал: ${d.matched}</span><span>Не совпал: ${d.mismatched}</span><span>Оп. пусто: ${d.op_empty}</span><span>Нет записей: ${d.no_recs}</span>`;
+      if (d.ai) {
+        statsHtml += `<span style="color:#a29bfe">AI: ${d.ai.agree}\u2714 ${d.ai.disagree}\u2716 ${d.ai.accuracy}%</span>`;
+      }
+      document.getElementById("dateStats").innerHTML = statsHtml;
     }
   } catch(e) {
     document.getElementById("list").innerHTML = `<div class="empty">Не удалось загрузить ${dateIso}.json</div>`;
@@ -573,6 +633,7 @@ async function loadDate(dateIso) {
 
 document.getElementById("search").addEventListener("input", applyFilters);
 document.getElementById("filter").addEventListener("change", applyFilters);
+document.getElementById("aiFilter").addEventListener("change", applyFilters);
 document.getElementById("opFilter").addEventListener("change", () => { updateStatusCounts(); applyFilters(); });
 document.getElementById("dateFilter").addEventListener("change", (e) => loadDate(e.target.value));
 
