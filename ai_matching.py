@@ -4,15 +4,19 @@ AI Shadow Matching: анализ транскрипций звонков с по
 Для каждой строки с записями AI определяет, какой callerid — обратный звонок
 с сайта. Результат сравнивается с оператором (agree/disagree/ai_only/op_only).
 
-Запуск: python ai_matching.py [--dry-run]
+Запуск: python ai_matching.py [--dry-run] [--date YYYY-MM-DD]
+
+Авторизация (в порядке приоритета):
+  1. OAuth токен из Claude CLI keychain (подписка Max/Pro) — автоматически
+  2. ANTHROPIC_API_KEY env var — для GitHub Actions
 """
 
 import asyncio
 import json
 import logging
 import os
+import subprocess
 import sys
-from datetime import datetime
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,6 +31,18 @@ BATCH_SIZE = 10
 MAX_CONCURRENT = 5
 MAX_RETRIES = 3
 
+# модель для OAuth (через подписку) и для API key
+MODEL_OAUTH = "claude-haiku-4-5-20251001"
+MODEL_API = "claude-haiku-4-5-20251001"
+
+# бета-флаги для OAuth авторизации через подписку (как в ims-aibot)
+ANTHROPIC_BETA = ",".join([
+    "claude-code-20250219",
+    "oauth-2025-04-20",
+    "fine-grained-tool-streaming-2025-05-14",
+    "interleaved-thinking-2025-05-14",
+])
+
 SYSTEM_PROMPT = (
     "Ты анализируешь записи телефонных звонков. Клиент оставил номер в форме "
     "обратного звонка на сайте. Определи, какая из записей — обратный звонок "
@@ -40,6 +56,43 @@ SYSTEM_PROMPT = (
     "Если ни одна запись не подходит — верни callerid как пустую строку.\n"
     "Отвечай ТОЛЬКО JSON массивом, без markdown и пояснений."
 )
+
+
+def get_oauth_token():
+    """Достаёт OAuth токен из macOS keychain (Claude Code credentials)."""
+    try:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        data = json.loads(result.stdout.strip())
+        return data.get("claudeAiOauth", {}).get("accessToken")
+    except Exception:
+        return None
+
+
+def make_client(oauth_token=None, api_key=None):
+    """Создаёт Anthropic клиент — через OAuth (подписка) или API key."""
+    import anthropic
+    import httpx
+
+    if oauth_token:
+        # OAuth через подписку — как в ims-aibot
+        return anthropic.AsyncAnthropic(
+            api_key=None,
+            auth_token=oauth_token,
+            default_headers={
+                "anthropic-beta": ANTHROPIC_BETA,
+                "user-agent": "claude-cli/2.1.2 (external, cli)",
+                "x-app": "cli",
+            },
+            timeout=httpx.Timeout(connect=5, read=120, write=30, pool=30),
+        )
+
+    # API key — для GitHub Actions
+    return anthropic.AsyncAnthropic(api_key=api_key)
 
 
 def load_dates_json(group_num):
@@ -174,7 +227,7 @@ def _is_fatal(error):
     return any(phrase in msg for phrase in FATAL_MESSAGES)
 
 
-async def process_batch(client, batch, semaphore, dry_run=False):
+async def process_batch(client, batch, semaphore, model, dry_run=False):
     """Отправляет батч в Claude и возвращает распарсенные результаты."""
     prompt = build_batch_prompt(batch)
 
@@ -186,7 +239,7 @@ async def process_batch(client, batch, semaphore, dry_run=False):
         for attempt in range(MAX_RETRIES):
             try:
                 response = await client.messages.create(
-                    model="claude-haiku-4-5-20251001",
+                    model=model,
                     max_tokens=2048,
                     system=SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": prompt}],
@@ -210,7 +263,7 @@ async def process_batch(client, batch, semaphore, dry_run=False):
     return []
 
 
-async def process_group(client, group_num, target_date, dry_run=False):
+async def process_group(client, group_num, target_date, model, dry_run=False):
     """Обрабатывает все строки одной группы за целевую дату."""
     data = load_date_data(group_num, target_date)
     if not data:
@@ -239,7 +292,7 @@ async def process_group(client, group_num, target_date, dry_run=False):
         rows = [row for _, row in batch_items]
 
         try:
-            results = await process_batch(client, rows, semaphore, dry_run)
+            results = await process_batch(client, rows, semaphore, model, dry_run)
         except FatalAPIError as e:
             log.error("Group %d: fatal API error, stopping: %s", group_num, e)
             fatal = True
@@ -321,18 +374,26 @@ async def main():
         if arg == "--date" and i + 1 < len(sys.argv):
             explicit_date = sys.argv[i + 1]
 
-    # проверяем наличие API ключа
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key and not dry_run:
-        log.warning("ANTHROPIC_API_KEY not set, skipping AI matching")
-        return
-
     if dry_run:
         log.info("=== DRY RUN MODE ===")
         client = None
+        model = MODEL_API
     else:
-        import anthropic
-        client = anthropic.AsyncAnthropic(api_key=api_key)
+        # пробуем OAuth из keychain (подписка), потом API key
+        oauth_token = get_oauth_token()
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+        if oauth_token:
+            client = make_client(oauth_token=oauth_token)
+            model = MODEL_OAUTH
+            log.info("Auth: OAuth (Claude subscription)")
+        elif api_key:
+            client = make_client(api_key=api_key)
+            model = MODEL_API
+            log.info("Auth: API key")
+        else:
+            log.warning("No auth available (no OAuth token, no ANTHROPIC_API_KEY)")
+            return
 
     # определяем целевую дату (одна и та же для всех групп)
     dates = load_dates_json(1)
@@ -347,7 +408,7 @@ async def main():
 
     for group_num in range(1, NUM_GROUPS + 1):
         try:
-            data = await process_group(client, group_num, target_date, dry_run)
+            data = await process_group(client, group_num, target_date, model, dry_run)
         except FatalAPIError as e:
             log.error("Fatal API error, stopping all groups: %s", e)
             break

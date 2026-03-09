@@ -38,6 +38,14 @@
         "recall": 98,
         "unique_phones": 62
       }
+    },
+    "ai": {
+      "processed": 577,
+      "agree": 94,
+      "disagree": 91,
+      "ai_only": 355,
+      "op_only": 37,
+      "accuracy": 51
     }
   },
   {
@@ -79,6 +87,14 @@
         "recall": 99,
         "unique_phones": 122
       }
+    },
+    "ai": {
+      "processed": 1178,
+      "agree": 207,
+      "disagree": 197,
+      "ai_only": 688,
+      "op_only": 86,
+      "accuracy": 51
     }
   },
   {
@@ -120,6 +136,14 @@
         "recall": 100,
         "unique_phones": 129
       }
+    },
+    "ai": {
+      "processed": 0,
+      "agree": 0,
+      "disagree": 0,
+      "ai_only": 0,
+      "op_only": 0,
+      "accuracy": 0
     }
   },
   {
@@ -161,6 +185,14 @@
         "recall": 99,
         "unique_phones": 129
       }
+    },
+    "ai": {
+      "processed": 911,
+      "agree": 202,
+      "disagree": 131,
+      "ai_only": 492,
+      "op_only": 86,
+      "accuracy": 61
     }
   },
   {
@@ -202,6 +234,14 @@
         "recall": 100,
         "unique_phones": 73
       }
+    },
+    "ai": {
+      "processed": 665,
+      "agree": 189,
+      "disagree": 45,
+      "ai_only": 379,
+      "op_only": 52,
+      "accuracy": 81
     }
   }
 ]
