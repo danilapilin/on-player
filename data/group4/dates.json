@@ -87,8 +87,8 @@
     "sites": 1712,
     "matched": 451,
     "mismatched": 19,
-    "op_empty": 1102,
-    "no_recs": 140,
+    "op_empty": 1106,
+    "no_recs": 136,
     "recall": 96,
     "unique_phones": 262,
     "operators": {
@@ -128,8 +128,8 @@
     "sites": 1716,
     "matched": 486,
     "mismatched": 8,
-    "op_empty": 1003,
-    "no_recs": 219,
+    "op_empty": 1014,
+    "no_recs": 208,
     "recall": 98,
     "unique_phones": 286,
     "operators": {
@@ -169,8 +169,8 @@
     "sites": 1724,
     "matched": 322,
     "mismatched": 4,
-    "op_empty": 930,
-    "no_recs": 468,
+    "op_empty": 961,
+    "no_recs": 437,
     "recall": 99,
     "unique_phones": 223,
     "operators": {

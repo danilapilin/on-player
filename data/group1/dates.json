@@ -86,15 +86,15 @@
     "label": "04.03",
     "sites": 1708,
     "matched": 449,
-    "mismatched": 62,
-    "op_empty": 1096,
-    "no_recs": 101,
+    "mismatched": 63,
+    "op_empty": 1100,
+    "no_recs": 96,
     "recall": 87,
     "unique_phones": 280,
     "operators": {
       "Светлана": {
         "matched": 127,
-        "mismatched": 16,
+        "mismatched": 17,
         "total": 427,
         "recall": 86,
         "unique_phones": 136
@@ -128,8 +128,8 @@
     "sites": 1720,
     "matched": 443,
     "mismatched": 8,
-    "op_empty": 1102,
-    "no_recs": 167,
+    "op_empty": 1105,
+    "no_recs": 164,
     "recall": 98,
     "unique_phones": 210,
     "operators": {

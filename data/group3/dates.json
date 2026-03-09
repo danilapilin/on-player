@@ -128,8 +128,8 @@
     "sites": 1716,
     "matched": 407,
     "mismatched": 12,
-    "op_empty": 1061,
-    "no_recs": 236,
+    "op_empty": 1063,
+    "no_recs": 234,
     "recall": 97,
     "unique_phones": 249,
     "operators": {
@@ -169,8 +169,8 @@
     "sites": 1724,
     "matched": 283,
     "mismatched": 3,
-    "op_empty": 1046,
-    "no_recs": 392,
+    "op_empty": 1053,
+    "no_recs": 385,
     "recall": 99,
     "unique_phones": 161,
     "operators": {
