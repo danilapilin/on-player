@@ -138,12 +138,12 @@
       }
     },
     "ai": {
-      "processed": 472,
-      "agree": 90,
-      "disagree": 91,
-      "ai_only": 238,
-      "op_only": 53,
-      "accuracy": 50
+      "processed": 1110,
+      "agree": 229,
+      "disagree": 170,
+      "ai_only": 598,
+      "op_only": 113,
+      "accuracy": 57
     }
   },
   {

@@ -4,7 +4,7 @@ AI Shadow Matching: анализ транскрипций звонков с по
 Для каждой строки с записями AI определяет, какой callerid — обратный звонок
 с сайта. Результат сравнивается с оператором (agree/disagree/ai_only/op_only).
 
-Запуск: python ai_matching.py [--dry-run] [--date YYYY-MM-DD]
+Запуск: python ai_matching.py [--dry-run] [--date YYYY-MM-DD] [--reprocess]
 
 Авторизация (в порядке приоритета):
   1. OAuth токен из Claude CLI keychain (подписка Max/Pro) — автоматически
@@ -79,7 +79,6 @@ def make_client(oauth_token=None, api_key=None):
     import httpx
 
     if oauth_token:
-        # OAuth через подписку — как в ims-aibot
         return anthropic.AsyncAnthropic(
             api_key=None,
             auth_token=oauth_token,
@@ -91,7 +90,6 @@ def make_client(oauth_token=None, api_key=None):
             timeout=httpx.Timeout(connect=5, read=120, write=30, pool=30),
         )
 
-    # API key — для GitHub Actions
     return anthropic.AsyncAnthropic(api_key=api_key)
 
 
@@ -130,14 +128,23 @@ def get_target_date(dates):
     return dates[-1]["date"] if dates else None
 
 
-def needs_processing(row):
-    """Строка подходит для AI: есть записи с транскрипциями и ещё не обработана."""
-    if row.get("ai_phone") is not None:
-        return False
+def has_transcripts(row):
+    """Есть ли у строки хотя бы одна запись с непустой транскрипцией."""
     if not row.get("recs"):
         return False
-    # хотя бы одна запись с непустой транскрипцией
     return any(r.get("transcript", "").strip() for r in row["recs"])
+
+
+def needs_processing(row, reprocess=False):
+    """Строка подходит для AI: есть записи с транскрипциями и ещё не обработана."""
+    if not has_transcripts(row):
+        return False
+
+    # reprocess — сбрасываем и перепрогоняем всё
+    if reprocess:
+        return True
+
+    return row.get("ai_phone") is None
 
 
 def build_batch_prompt(batch):
@@ -163,7 +170,6 @@ def build_batch_prompt(batch):
 
 def parse_ai_response(text, batch_size):
     """Парсит JSON ответ от Claude. Возвращает список {id, callerid, reasoning}."""
-    # убираем markdown обёртку если есть
     text = text.strip()
     if text.startswith("```"):
         lines = text.split("\n")
@@ -177,7 +183,6 @@ def parse_ai_response(text, batch_size):
     if not isinstance(results, list):
         raise ValueError("Expected JSON array")
 
-    # проверяем что все id в диапазоне
     parsed = []
     for item in results:
         idx = item.get("id")
@@ -203,7 +208,7 @@ def compute_ai_vs_op(row):
     if ai_phone and not op_phone:
         return "ai_only"
 
-    # оба есть — сравниваем (частичное совпадение, как в calc_status)
+    # оба есть — сравниваем (частичное совпадение)
     if op_phone in ai_phone or ai_phone in op_phone:
         return "agree"
     return "disagree"
@@ -251,7 +256,6 @@ async def process_batch(client, batch, semaphore, model, dry_run=False):
                 if attempt == MAX_RETRIES - 1:
                     return []
             except Exception as e:
-                # фатальные ошибки — прекращаем всю обработку
                 if _is_fatal(e):
                     raise FatalAPIError(str(e))
 
@@ -263,58 +267,86 @@ async def process_batch(client, batch, semaphore, model, dry_run=False):
     return []
 
 
-async def process_group(client, group_num, target_date, model, dry_run=False):
-    """Обрабатывает все строки одной группы за целевую дату."""
+async def process_group(client, group_num, target_date, model, dry_run=False, reprocess=False):
+    """Обрабатывает все строки одной группы за целевую дату.
+
+    Батчи запускаются параллельно (до MAX_CONCURRENT одновременно).
+    Результаты сохраняются каждые 500 строк на случай падения.
+    """
     data = load_date_data(group_num, target_date)
     if not data:
         log.warning("Group %d: no data for %s", group_num, target_date)
         return None
 
     # фильтруем строки для обработки
-    to_process = [(i, row) for i, row in enumerate(data) if needs_processing(row)]
+    to_process = [(i, row) for i, row in enumerate(data) if needs_processing(row, reprocess)]
     if not to_process:
-        log.info("Group %d: all rows already processed or no eligible rows", group_num)
+        log.info("Group %d: nothing to process", group_num)
         return data
 
     log.info("Group %d: %d rows to process out of %d total", group_num, len(to_process), len(data))
 
-    # батчим
+    # нарезаем на батчи
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     batches = []
     for i in range(0, len(to_process), BATCH_SIZE):
-        chunk = to_process[i:i + BATCH_SIZE]
-        batches.append(chunk)
+        batches.append(to_process[i:i + BATCH_SIZE])
 
+    # обрабатываем чанками по MAX_CONCURRENT батчей параллельно
     processed = 0
     fatal = False
-    for batch_items in batches:
-        indices = [idx for idx, _ in batch_items]
-        rows = [row for _, row in batch_items]
+    SAVE_EVERY = 500
+
+    for chunk_start in range(0, len(batches), MAX_CONCURRENT):
+        chunk = batches[chunk_start:chunk_start + MAX_CONCURRENT]
+
+        # запускаем батчи параллельно
+        tasks = []
+        for batch_items in chunk:
+            rows = [row for _, row in batch_items]
+            tasks.append(process_batch(client, rows, semaphore, model, dry_run))
 
         try:
-            results = await process_batch(client, rows, semaphore, model, dry_run)
+            results_list = await asyncio.gather(*tasks, return_exceptions=True)
         except FatalAPIError as e:
-            log.error("Group %d: fatal API error, stopping: %s", group_num, e)
+            log.error("Group %d: fatal API error: %s", group_num, e)
             fatal = True
             break
 
-        # применяем результаты
-        result_map = {r["id"]: r for r in results}
-        for batch_idx, (data_idx, row) in enumerate(batch_items):
-            ai = result_map.get(batch_idx)
-            if ai:
-                data[data_idx]["ai_phone"] = ai["callerid"]
-                data[data_idx]["ai_reasoning"] = ai["reasoning"]
-            else:
-                data[data_idx]["ai_phone"] = ""
-                data[data_idx]["ai_reasoning"] = ""
-            data[data_idx]["ai_vs_op"] = compute_ai_vs_op(data[data_idx])
+        # применяем результаты из каждого батча
+        for batch_items, results in zip(chunk, results_list):
+            if isinstance(results, FatalAPIError):
+                log.error("Group %d: fatal API error: %s", group_num, results)
+                fatal = True
+                break
+            if isinstance(results, Exception):
+                log.warning("Group %d: batch error: %s", group_num, results)
+                results = []
 
-        processed += len(batch_items)
-        if processed % 100 == 0 or processed == len(to_process):
+            result_map = {r["id"]: r for r in results}
+            for batch_idx, (data_idx, row) in enumerate(batch_items):
+                ai = result_map.get(batch_idx)
+                if ai:
+                    data[data_idx]["ai_phone"] = ai["callerid"]
+                    data[data_idx]["ai_reasoning"] = ai["reasoning"]
+                else:
+                    data[data_idx]["ai_phone"] = ""
+                    data[data_idx]["ai_reasoning"] = ""
+                data[data_idx]["ai_vs_op"] = compute_ai_vs_op(data[data_idx])
+
+            processed += len(batch_items)
+
+        if fatal:
+            break
+
+        # промежуточное сохранение каждые SAVE_EVERY строк
+        if not dry_run and processed % SAVE_EVERY < MAX_CONCURRENT * BATCH_SIZE:
+            save_date_data(group_num, target_date, data)
+
+        if processed % 100 < MAX_CONCURRENT * BATCH_SIZE or processed == len(to_process):
             log.info("Group %d: %d/%d processed", group_num, processed, len(to_process))
 
-    # помечаем строки без записей как skip
+    # помечаем строки без записей/транскрипций как skip
     for row in data:
         if "ai_vs_op" not in row:
             row["ai_phone"] = ""
@@ -343,7 +375,6 @@ def compute_ai_stats(data):
         if vs in stats:
             stats[vs] += 1
 
-    # accuracy: agree / (agree + disagree) — только по строкам где оба нашли
     decided = stats["agree"] + stats["disagree"]
     stats["accuracy"] = round(stats["agree"] / decided * 100) if decided else 0
 
@@ -367,6 +398,7 @@ def update_dates_json(group_num, target_date, ai_stats):
 
 async def main():
     dry_run = "--dry-run" in sys.argv
+    reprocess = "--reprocess" in sys.argv
 
     # --date YYYY-MM-DD для указания конкретной даты
     explicit_date = None
@@ -379,7 +411,6 @@ async def main():
         client = None
         model = MODEL_API
     else:
-        # пробуем OAuth из keychain (подписка), потом API key
         oauth_token = get_oauth_token()
         api_key = os.environ.get("ANTHROPIC_API_KEY")
 
@@ -395,49 +426,58 @@ async def main():
             log.warning("No auth available (no OAuth token, no ANTHROPIC_API_KEY)")
             return
 
-    # определяем целевую дату (одна и та же для всех групп)
+    # определяем целевые даты
     dates = load_dates_json(1)
     if not dates:
         log.error("No dates.json found for group 1")
         return
 
-    target_date = explicit_date or get_target_date(dates)
-    log.info("Target date: %s", target_date)
+    if explicit_date:
+        target_dates = [explicit_date]
+    else:
+        # без --date обрабатываем предпоследнюю дату (вчера)
+        td = get_target_date(dates)
+        target_dates = [td] if td else []
 
-    total_stats = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
+    for target_date in target_dates:
+        log.info("=== Processing date: %s %s===", target_date, "(reprocess) " if reprocess else "")
 
-    for group_num in range(1, NUM_GROUPS + 1):
-        try:
-            data = await process_group(client, group_num, target_date, model, dry_run)
-        except FatalAPIError as e:
-            log.error("Fatal API error, stopping all groups: %s", e)
-            break
+        total_stats = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
 
-        if data is None:
-            continue
+        for group_num in range(1, NUM_GROUPS + 1):
+            try:
+                data = await process_group(
+                    client, group_num, target_date, model, dry_run, reprocess,
+                )
+            except FatalAPIError as e:
+                log.error("Fatal API error, stopping: %s", e)
+                return
 
-        ai_stats = compute_ai_stats(data)
+            if data is None:
+                continue
+
+            ai_stats = compute_ai_stats(data)
+            log.info(
+                "Group %d: processed=%d, agree=%d, disagree=%d, "
+                "ai_only=%d, op_only=%d, accuracy=%d%%",
+                group_num, ai_stats["processed"], ai_stats["agree"],
+                ai_stats["disagree"], ai_stats["ai_only"], ai_stats["op_only"],
+                ai_stats["accuracy"],
+            )
+
+            if not dry_run:
+                update_dates_json(group_num, target_date, ai_stats)
+
+            for k in total_stats:
+                total_stats[k] += ai_stats.get(k, 0)
+
+        decided = total_stats["agree"] + total_stats["disagree"]
+        total_acc = round(total_stats["agree"] / decided * 100) if decided else 0
         log.info(
-            "Group %d AI stats: processed=%d, agree=%d, disagree=%d, "
-            "ai_only=%d, op_only=%d, accuracy=%d%%",
-            group_num, ai_stats["processed"], ai_stats["agree"],
-            ai_stats["disagree"], ai_stats["ai_only"], ai_stats["op_only"],
-            ai_stats["accuracy"],
+            "=== %s TOTAL: processed=%d, agree=%d, disagree=%d, accuracy=%d%% ===",
+            target_date, total_stats["processed"], total_stats["agree"],
+            total_stats["disagree"], total_acc,
         )
-
-        if not dry_run:
-            update_dates_json(group_num, target_date, ai_stats)
-
-        for k in total_stats:
-            total_stats[k] += ai_stats.get(k, 0)
-
-    decided = total_stats["agree"] + total_stats["disagree"]
-    total_acc = round(total_stats["agree"] / decided * 100) if decided else 0
-    log.info(
-        "=== TOTAL: processed=%d, agree=%d, disagree=%d, accuracy=%d%% ===",
-        total_stats["processed"], total_stats["agree"],
-        total_stats["disagree"], total_acc,
-    )
 
 
 if __name__ == "__main__":
