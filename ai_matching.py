@@ -27,8 +27,8 @@ log = logging.getLogger(__name__)
 
 OUTPUT_DIR = "data"
 NUM_GROUPS = 4
-BATCH_SIZE = 10
-MAX_CONCURRENT = 5
+BATCH_SIZE = 20
+MAX_CONCURRENT = 10
 MAX_RETRIES = 3
 
 # модель для OAuth (через подписку) и для API key

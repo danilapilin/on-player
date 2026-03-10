@@ -120,6 +120,14 @@
         "recall": 100,
         "unique_phones": 111
       }
+    },
+    "ai": {
+      "processed": 993,
+      "agree": 234,
+      "disagree": 144,
+      "ai_only": 523,
+      "op_only": 92,
+      "accuracy": 62
     }
   },
   {
@@ -161,6 +169,14 @@
         "recall": 100,
         "unique_phones": 118
       }
+    },
+    "ai": {
+      "processed": 901,
+      "agree": 245,
+      "disagree": 115,
+      "ai_only": 407,
+      "op_only": 134,
+      "accuracy": 68
     }
   },
   {
@@ -202,6 +218,14 @@
         "recall": 100,
         "unique_phones": 91
       }
+    },
+    "ai": {
+      "processed": 616,
+      "agree": 183,
+      "disagree": 64,
+      "ai_only": 290,
+      "op_only": 79,
+      "accuracy": 74
     }
   },
   {
