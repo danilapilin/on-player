@@ -9,11 +9,11 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .header { background:#2d3436; color:#fff; padding:20px 24px; position:sticky; top:0; z-index:10; }
 .header h1 { font-size:18px; font-weight:600; }
 .header .sub { font-size:13px; opacity:0.7; margin-top:4px; }
-.group-tabs { display:flex; gap:6px; margin-top:10px; }
-.group-tab { padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600; cursor:pointer;
-  background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); border:none; transition:all 0.2s; }
+.group-tabs { display:flex; gap:4px; }
+.group-tab { padding:5px 12px; border-radius:16px; font-size:12px; font-weight:600; cursor:pointer;
+  background:#e8f0ff; color:#0984e3; border:none; transition:all 0.2s; }
 .group-tab.active { background:#0984e3; color:#fff; }
-.group-tab:hover:not(.active) { background:rgba(255,255,255,0.2); }
+.group-tab:hover:not(.active) { background:#d0e2ff; }
 .tabs { display:flex; gap:4px; margin-top:10px; }
 .tab { padding:8px 18px; border-radius:8px 8px 0 0; font-size:13px; font-weight:600; cursor:pointer;
        background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); border:none; }
@@ -143,17 +143,18 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .verdict-saved { font-size:11px; color:#00b894; margin-left:8px; opacity:0; transition:opacity 0.3s; }
 .verdict-saved.show { opacity:1; }
 
-/* Sticky nav wrapper — sticks right below header */
-#stickyNav { position:sticky; top:0; z-index:9; }
+/* Focus nav inside header */
 #stickyNav:empty { display:none; }
+#stickyNav { margin-top:8px; }
 .disagree-nav { display:flex; gap:12px; align-items:center; justify-content:center;
-  padding:10px 16px; background:#fff; border-radius:0 0 10px 10px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.08); max-width:1100px; margin:0 auto; }
+  padding:8px 16px; background:rgba(255,255,255,0.1); border-radius:8px; }
 .disagree-nav button { padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600;
-  cursor:pointer; border:1px solid #dfe6e9; background:#fff; color:#2d3436; }
-.disagree-nav button:hover { background:#f0f7ff; border-color:#0984e3; }
-.disagree-nav .nav-counter { font-size:13px; font-weight:600; color:#636e72; }
-.disagree-nav .nav-reviewed { font-size:12px; color:#00b894; }
+  cursor:pointer; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.15); color:#fff; }
+.disagree-nav button:hover { background:rgba(255,255,255,0.25); }
+.disagree-nav button[disabled] { opacity:0.3; cursor:default; }
+.disagree-nav button[disabled]:hover { background:rgba(255,255,255,0.15); }
+.disagree-nav .nav-counter { font-size:13px; font-weight:600; color:rgba(255,255,255,0.9); }
+.disagree-nav .nav-reviewed { font-size:12px; color:#55efc4; }
 .disagree-nav .export-btn { background:#a29bfe; color:#fff; border-color:#a29bfe; margin-left:auto; }
 .disagree-nav .export-btn:hover { background:#8c7ae6; }
 
@@ -174,12 +175,6 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 
 <div class="header">
   <h1>Сбор ОН</h1>
-  <div class="group-tabs" id="groupTabs">
-    <button class="group-tab active" data-group="1" onclick="switchGroup(1)">Группа 1</button>
-    <button class="group-tab" data-group="2" onclick="switchGroup(2)">Группа 2</button>
-    <button class="group-tab" data-group="3" onclick="switchGroup(3)">Группа 3</button>
-    <button class="group-tab" data-group="4" onclick="switchGroup(4)">Группа 4</button>
-  </div>
   <div class="sub" id="subtitle">Загрузка...</div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('player')">Записи</button>
@@ -187,6 +182,12 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
     <button class="tab" onclick="switchTab('ai_review')">AI vs Оператор</button>
   </div>
   <div class="controls player-controls" id="playerControls">
+    <div class="group-tabs" id="groupTabs">
+      <button class="group-tab active" data-group="1" onclick="switchGroup(1)">Группа 1</button>
+      <button class="group-tab" data-group="2" onclick="switchGroup(2)">Группа 2</button>
+      <button class="group-tab" data-group="3" onclick="switchGroup(3)">Группа 3</button>
+      <button class="group-tab" data-group="4" onclick="switchGroup(4)">Группа 4</button>
+    </div>
     <select id="dateFilter"><option value="">Загрузка дат...</option></select>
     <input type="text" id="search" placeholder="Поиск по сайту, номеру, тексту...">
     <select id="opFilter">
@@ -209,9 +210,8 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
     <div class="count" id="count"></div>
   </div>
   <div class="date-stats" id="dateStats"></div>
+  <div id="stickyNav"></div>
 </div>
-
-<div id="stickyNav"></div>
 <div class="player-view" id="playerView">
   <div class="container" id="list"></div>
 </div>
@@ -894,10 +894,10 @@ function renderFocusMode() {
   // nav bar
   stickyNav.innerHTML =
     `<div class="disagree-nav">
-      <button onclick="focusNav(-1)" ${focusIdx === 0 ? 'disabled style="opacity:0.3;cursor:default"' : ''}>&#9664; Пред</button>
+      <button onclick="focusNav(-1)" ${focusIdx === 0 ? 'disabled' : ''}>&#9664; Пред</button>
       <span class="nav-counter" id="navCounter">${focusIdx + 1} из ${FILTERED.length}</span>
       <span class="nav-reviewed" id="navReviewed">${reviewed} из ${FILTERED.length} проверено</span>
-      <button onclick="focusNav(1)" ${focusIdx >= FILTERED.length - 1 ? 'disabled style="opacity:0.3;cursor:default"' : ''}>След &#9654;</button>
+      <button onclick="focusNav(1)" ${focusIdx >= FILTERED.length - 1 ? 'disabled' : ''}>След &#9654;</button>
       <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
     </div>`;
 
