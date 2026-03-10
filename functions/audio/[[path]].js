@@ -1,8 +1,9 @@
 // Cloudflare Pages Function: proxy audio requests to HTTP API
-// /audio/path/to/file → http://assist.intmarksol.com/api/path/to/file
+// /audio/?action=getMP3&... → http://assist.intmarksol.com/api/?action=getMP3&...
 export async function onRequest(context) {
+  const url = new URL(context.request.url);
   const path = context.params.path ? context.params.path.join("/") : "";
-  const target = `http://assist.intmarksol.com/api/${path}`;
+  const target = `http://assist.intmarksol.com/api/${path}${url.search}`;
 
   const resp = await fetch(target);
 

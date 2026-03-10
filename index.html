@@ -659,8 +659,8 @@ function playAudio(btn, rawUrl) {
     currentAudio = null;
   };
   audio.addEventListener('ended', cleanup);
-  audio.addEventListener('error', () => { cleanup(); window.open(rawUrl, '_blank'); });
-  audio.play().catch(() => { cleanup(); window.open(rawUrl, '_blank'); });
+  audio.addEventListener('error', cleanup);
+  audio.play().catch(cleanup);
 }
 let currentAudio = null;
 
@@ -960,8 +960,13 @@ function renderAnalytics(selectedDate) {
 
 // ─── AI Review tab ───
 
+let _goToPlayerPending = null; // pending navigation target
+
 async function goToPlayer(group, date, operator, aiFilter) {
-  // switch to player tab first so UI elements are visible
+  // save target so loadDate/loadGroup know to defer applyFilters
+  _goToPlayerPending = { date, operator, aiFilter };
+
+  // switch to player tab first
   currentTab = "player";
   document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i === 0));
   document.getElementById("playerView").classList.remove("hidden");
@@ -969,43 +974,22 @@ async function goToPlayer(group, date, operator, aiFilter) {
   document.getElementById("dateStats").style.display = "flex";
   document.getElementById("analyticsView").classList.remove("visible");
 
+  // load group (this also loads latest date via loadDate inside)
   currentGroup = group;
   document.getElementById("groupFilter").value = group;
+  await loadGroup();
 
-  // load group dates without loading date data (we'll load specific date below)
-  const base = getBase();
-  try {
-    const resp = await fetch(base + "dates.json");
-    const dates = await resp.json();
-    DATES = dates;
-    ALL_GROUPS[currentGroup] = dates;
-    const sel = document.getElementById("dateFilter");
-    sel.innerHTML = dates.map(d =>
-      `<option value="${d.date}">${d.label} — ${d.sites} сайтов, recall ${d.recall}%</option>`
-    ).join("");
-  } catch(e) { return; }
-
-  // load target date data
+  // now load the target date
   document.getElementById("dateFilter").value = date;
-  try {
-    const resp = await fetch(base + date + ".json");
-    DATA = await resp.json();
-    assignOpColors();
-    populateOperators();
-  } catch(e) { return; }
+  await loadDate(date);
 
-  // set all filters BEFORE applying
+  // set filters AFTER data is loaded
   if (operator) document.getElementById("opFilter").value = operator;
   document.getElementById("aiFilter").value = aiFilter || "all";
   document.getElementById("filter").value = "all";
+  document.getElementById("search").value = "";
 
-  // update subtitle
-  const d = DATES.find(x => x.date === date);
-  if (d) {
-    const aiLabel = d.ai ? ` · AI ${d.ai.accuracy}%` : '';
-    document.getElementById("subtitle").textContent =
-      `${d.label} · Группа ${currentGroup} · ${d.sites} сайтов · Recall ${d.recall}%${aiLabel}`;
-  }
+  _goToPlayerPending = null;
 
   updateStatusCounts();
   applyFilters();
@@ -1196,8 +1180,12 @@ async function loadDate(dateIso) {
     DATA = await resp.json();
     assignOpColors();
     populateOperators();
-    updateStatusCounts();
-    applyFilters();
+
+    // skip applyFilters if goToPlayer will handle it (sets operator/AI filters after loadDate)
+    if (!_goToPlayerPending) {
+      updateStatusCounts();
+      applyFilters();
+    }
 
     const d = DATES.find(x => x.date === dateIso);
     if (d) {
