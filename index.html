@@ -143,10 +143,12 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .verdict-saved { font-size:11px; color:#00b894; margin-left:8px; opacity:0; transition:opacity 0.3s; }
 .verdict-saved.show { opacity:1; }
 
-/* Disagree navigation bar — sticky below header */
+/* Sticky nav wrapper — sticks right below header */
+#stickyNav { position:sticky; top:0; z-index:9; }
+#stickyNav:empty { display:none; }
 .disagree-nav { display:flex; gap:12px; align-items:center; justify-content:center;
-  padding:10px 16px; background:#fff; border-radius:0 0 10px 10px; margin-bottom:12px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.08); position:sticky; top:0; z-index:9; }
+  padding:10px 16px; background:#fff; border-radius:0 0 10px 10px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.08); max-width:1100px; margin:0 auto; }
 .disagree-nav button { padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600;
   cursor:pointer; border:1px solid #dfe6e9; background:#fff; color:#2d3436; }
 .disagree-nav button:hover { background:#f0f7ff; border-color:#0984e3; }
@@ -159,10 +161,13 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .row-reviewed { border-right:4px solid #00b894; }
 .row-reviewed .verdict-bar::after { content:' \2714 Проверено'; color:#00b894; font-size:12px; font-weight:600; }
 
-/* Mini bar in matrix */
+/* Mini bar in matrix — accuracy (green/red) */
 .mini-bar { display:inline-flex; width:60px; height:8px; border-radius:4px; overflow:hidden; vertical-align:middle; margin-left:6px; }
 .mini-bar .mb-agree { background:#00b894; height:100%; }
 .mini-bar .mb-disagree { background:#d63031; height:100%; }
+/* Mini bar — potential (blue/gray) */
+.mini-bar .mb-covered { background:#0984e3; height:100%; }
+.mini-bar .mb-uncovered { background:#dfe6e9; height:100%; }
 </style>
 </head>
 <body>
@@ -206,6 +211,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
   <div class="date-stats" id="dateStats"></div>
 </div>
 
+<div id="stickyNav"></div>
 <div class="player-view" id="playerView">
   <div class="container" id="list"></div>
 </div>
@@ -351,18 +357,21 @@ function applyFilters() {
   const listEl = document.getElementById("list");
   listEl.innerHTML = "";
 
-  // disagree navigation bar when filtering disagree cases
+  // disagree/ai_only navigation bar — render into sticky wrapper outside scroll area
+  const stickyNav = document.getElementById("stickyNav");
   const aiFilterVal2 = document.getElementById("aiFilter").value;
   if ((aiFilterVal2 === 'disagree' || aiFilterVal2 === 'ai_only') && FILTERED.length > 0) {
-    listEl.insertAdjacentHTML("beforeend",
+    stickyNav.innerHTML =
       `<div class="disagree-nav">
         <button onclick="scrollToDisagreeRow(-1)">&#9664; Пред</button>
         <span class="nav-counter" id="navCounter">— из ${FILTERED.length}</span>
         <span class="nav-reviewed" id="navReviewed"></span>
         <button onclick="scrollToDisagreeRow(1)">След &#9654;</button>
         <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
-      </div>`);
+      </div>`;
     updateReviewCounter();
+  } else {
+    stickyNav.innerHTML = '';
   }
 
   document.getElementById("count").textContent = `Показано: 0 из ${FILTERED.length}`;
@@ -978,7 +987,7 @@ function renderAiReview() {
         <td class="num clickable" style="color:#a29bfe" onclick="goToPlayer(${g},'${reportDate}','${op}','ai_only')">${s.ai_only}</td>
         <td class="num clickable" style="color:#e17055" onclick="goToPlayer(${g},'${reportDate}','${op}','op_only')">${s.op_only}</td>
         <td class="num" style="font-weight:700;color:${accColor}">${acc}%<div class="mini-bar"><div class="mb-agree" style="width:${barW}%"></div><div class="mb-disagree" style="width:${100-barW}%"></div></div></td>
-        <td class="num" style="font-weight:700;color:${potColor(pot)}">${pot}%</td></tr>`;
+        <td class="num" style="font-weight:700;color:${potColor(pot)}">${pot}%<div class="mini-bar"><div class="mb-covered" style="width:${pot}%"></div><div class="mb-uncovered" style="width:${100-pot}%"></div></div></td></tr>`;
     });
 
     // group total
@@ -995,7 +1004,7 @@ function renderAiReview() {
         <td class="num clickable" style="color:#a29bfe" onclick="goToPlayer(${g},'${reportDate}','','ai_only')">${ga.ai_only}</td>
         <td class="num clickable" style="color:#e17055" onclick="goToPlayer(${g},'${reportDate}','','op_only')">${ga.op_only}</td>
         <td class="num" style="color:${gColor}">${gAcc}%<div class="mini-bar"><div class="mb-agree" style="width:${gBarW}%"></div><div class="mb-disagree" style="width:${100-gBarW}%"></div></div></td>
-        <td class="num" style="color:${potColor(gPot)}">${gPot}%</td></tr>`;
+        <td class="num" style="color:${potColor(gPot)}">${gPot}%<div class="mini-bar"><div class="mb-covered" style="width:${gPot}%"></div><div class="mb-uncovered" style="width:${100-gPot}%"></div></div></td></tr>`;
     }
   });
 
