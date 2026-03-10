@@ -141,10 +141,10 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .verdict-saved { font-size:11px; color:#00b894; margin-left:8px; opacity:0; transition:opacity 0.3s; }
 .verdict-saved.show { opacity:1; }
 
-/* Disagree navigation bar */
+/* Disagree navigation bar — sticky below header */
 .disagree-nav { display:flex; gap:12px; align-items:center; justify-content:center;
-  padding:10px 16px; background:#fff; border-radius:10px; margin-bottom:12px;
-  box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  padding:10px 16px; background:#fff; border-radius:0 0 10px 10px; margin-bottom:12px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.08); position:sticky; top:0; z-index:9; }
 .disagree-nav button { padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600;
   cursor:pointer; border:1px solid #dfe6e9; background:#fff; color:#2d3436; }
 .disagree-nav button:hover { background:#f0f7ff; border-color:#0984e3; }
@@ -153,9 +153,9 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .disagree-nav .export-btn { background:#a29bfe; color:#fff; border-color:#a29bfe; margin-left:auto; }
 .disagree-nav .export-btn:hover { background:#8c7ae6; }
 
-/* Reviewed row visual state */
-.row-reviewed { opacity:0.6; }
-.row-reviewed::after { content:''; display:none; }
+/* Reviewed row — green checkmark indicator, NOT dimmed */
+.row-reviewed { border-right:4px solid #00b894; }
+.row-reviewed .verdict-bar::after { content:' \2714 Проверено'; color:#00b894; font-size:12px; font-weight:600; }
 
 /* Mini bar in matrix */
 .mini-bar { display:inline-flex; width:60px; height:8px; border-radius:4px; overflow:hidden; vertical-align:middle; margin-left:6px; }
@@ -848,8 +848,10 @@ let disagreeIdx = -1;
 function scrollToDisagreeRow(dir) {
   const rows = document.querySelectorAll('.row-disagree');
   if (!rows.length) return;
-  disagreeIdx = Math.max(0, Math.min(rows.length - 1, disagreeIdx + dir));
-  rows[disagreeIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+  const newIdx = disagreeIdx + dir;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+  disagreeIdx = newIdx;
+  rows[disagreeIdx].scrollIntoView({ behavior:'smooth', block:'start' });
   const counter = document.getElementById('navCounter');
   if (counter) counter.textContent = `${disagreeIdx + 1} из ${rows.length}`;
 }
