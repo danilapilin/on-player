@@ -9,11 +9,6 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .header { background:#2d3436; color:#fff; padding:20px 24px; position:sticky; top:0; z-index:10; }
 .header h1 { font-size:18px; font-weight:600; }
 .header .sub { font-size:13px; opacity:0.7; margin-top:4px; }
-.group-tabs { display:flex; gap:4px; }
-.group-tab { padding:5px 12px; border-radius:16px; font-size:12px; font-weight:600; cursor:pointer;
-  background:#e8f0ff; color:#0984e3; border:none; transition:all 0.2s; }
-.group-tab.active { background:#0984e3; color:#fff; }
-.group-tab:hover:not(.active) { background:#d0e2ff; }
 .tabs { display:flex; gap:4px; margin-top:10px; }
 .tab { padding:8px 18px; border-radius:8px 8px 0 0; font-size:13px; font-weight:600; cursor:pointer;
        background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); border:none; }
@@ -182,12 +177,12 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
     <button class="tab" onclick="switchTab('ai_review')">AI vs Оператор</button>
   </div>
   <div class="controls player-controls" id="playerControls">
-    <div class="group-tabs" id="groupTabs">
-      <button class="group-tab active" data-group="1" onclick="switchGroup(1)">Группа 1</button>
-      <button class="group-tab" data-group="2" onclick="switchGroup(2)">Группа 2</button>
-      <button class="group-tab" data-group="3" onclick="switchGroup(3)">Группа 3</button>
-      <button class="group-tab" data-group="4" onclick="switchGroup(4)">Группа 4</button>
-    </div>
+    <select id="groupFilter" onchange="switchGroup(parseInt(this.value))">
+      <option value="1">Группа 1</option>
+      <option value="2">Группа 2</option>
+      <option value="3">Группа 3</option>
+      <option value="4">Группа 4</option>
+    </select>
     <select id="dateFilter"><option value="">Загрузка дат...</option></select>
     <input type="text" id="search" placeholder="Поиск по сайту, номеру, тексту...">
     <select id="opFilter">
@@ -259,8 +254,7 @@ function populateOperators() {
 
 function switchGroup(num) {
   currentGroup = num;
-  document.querySelectorAll(".group-tab").forEach(t =>
-    t.classList.toggle("active", parseInt(t.dataset.group) === num));
+  document.getElementById("groupFilter").value = num;
   return loadGroup().then(() => saveFilters());
 }
 
@@ -365,17 +359,10 @@ function applyFilters() {
   const stickyNav = document.getElementById("stickyNav");
   const aiFilterVal2 = document.getElementById("aiFilter").value;
 
-  // focus mode: show one item at a time for disagree/ai_only review
-  focusMode = (aiFilterVal2 === 'disagree' || aiFilterVal2 === 'ai_only') && FILTERED.length > 0;
-  if (focusMode) {
-    focusIdx = 0;
-    renderFocusMode();
-    return;
-  }
-
-  stickyNav.innerHTML = '';
-  document.getElementById("count").textContent = `Показано: 0 из ${FILTERED.length}`;
-  showMore();
+  // always use focus mode — one card at a time
+  focusMode = true;
+  focusIdx = 0;
+  renderFocusMode();
 }
 
 function renderRow(d, globalIdx) {
@@ -568,10 +555,6 @@ function setVerdict(btn, idx, verdict) {
   // update counter
   updateReviewCounter();
 
-  // auto-advance after short delay
-  if (focusMode) {
-    setTimeout(() => focusNav(1), 500);
-  }
 }
 
 function setComment(idx, comment) {
@@ -809,8 +792,7 @@ function renderAnalytics() {
 async function goToPlayer(group, date, operator, aiFilter) {
   // navigate to player tab with specific group, date, operator, and AI filter
   currentGroup = group;
-  document.querySelectorAll(".group-tab").forEach(t =>
-    t.classList.toggle("active", parseInt(t.dataset.group) === group));
+  document.getElementById("groupFilter").value = group;
   await loadGroup();
   document.getElementById("dateFilter").value = date;
   await loadDate(date);
@@ -876,42 +858,56 @@ function renderFocusMode() {
   const listEl = document.getElementById("list");
   const stickyNav = document.getElementById("stickyNav");
   const date = document.getElementById('dateFilter').value;
+  const aiF = document.getElementById("aiFilter").value;
+  const isReviewMode = (aiF === 'disagree' || aiF === 'ai_only');
 
   if (!FILTERED.length) {
-    stickyNav.innerHTML = '';
-    listEl.innerHTML = '<div class="empty">Нет записей для ревью</div>';
+    // show nav with 0/0 so it doesn't disappear
+    stickyNav.innerHTML =
+      `<div class="disagree-nav">
+        <button disabled>&#9664; Пред</button>
+        <span class="nav-counter">0 из 0</span>
+        <button disabled>След &#9654;</button>
+      </div>`;
+    listEl.innerHTML = '<div class="empty">Ничего не найдено</div>';
+    document.getElementById("count").textContent = '0 из 0';
     return;
   }
 
   if (focusIdx < 0) focusIdx = 0;
   if (focusIdx >= FILTERED.length) focusIdx = FILTERED.length - 1;
 
-  // count reviewed
-  const reviewed = FILTERED.filter(d => getVerdict(currentGroup, date, d.idx)).length;
   const d = FILTERED[focusIdx];
-  const isReviewed = !!getVerdict(currentGroup, date, d.idx);
+
+  // review stats (only for disagree/ai_only modes)
+  let reviewHtml = '';
+  if (isReviewMode) {
+    const reviewed = FILTERED.filter(x => getVerdict(currentGroup, date, x.idx)).length;
+    reviewHtml = `<span class="nav-reviewed">${reviewed} из ${FILTERED.length} проверено</span>`;
+    reviewHtml += `<button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>`;
+  }
 
   // nav bar
   stickyNav.innerHTML =
     `<div class="disagree-nav">
       <button onclick="focusNav(-1)" ${focusIdx === 0 ? 'disabled' : ''}>&#9664; Пред</button>
-      <span class="nav-counter" id="navCounter">${focusIdx + 1} из ${FILTERED.length}</span>
-      <span class="nav-reviewed" id="navReviewed">${reviewed} из ${FILTERED.length} проверено</span>
+      <span class="nav-counter">${focusIdx + 1} из ${FILTERED.length}</span>
+      ${reviewHtml}
       <button onclick="focusNav(1)" ${focusIdx >= FILTERED.length - 1 ? 'disabled' : ''}>След &#9654;</button>
-      <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
     </div>`;
 
   // render single row
   listEl.innerHTML = renderRow(d, focusIdx);
   document.getElementById("count").textContent = `${focusIdx + 1} из ${FILTERED.length}`;
 
-  // mark reviewed
+  // mark reviewed if has verdict
+  const isReviewed = !!getVerdict(currentGroup, date, d.idx);
   if (isReviewed) {
     const row = listEl.querySelector('.row');
     if (row) row.classList.add('row-reviewed');
   }
 
-  // expand all transcripts in focus mode (no need to click "показать всё")
+  // expand all transcripts
   listEl.querySelectorAll('.rec-text').forEach(el => {
     el.style.maxHeight = 'none';
     el.style.overflow = 'visible';
@@ -920,7 +916,6 @@ function renderFocusMode() {
     btn.textContent = 'свернуть';
   });
 
-  // scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1199,8 +1194,7 @@ async function init() {
   const saved = getSavedFilters();
   if (saved) {
     currentGroup = saved.group || 1;
-    document.querySelectorAll(".group-tab").forEach(t =>
-      t.classList.toggle("active", parseInt(t.dataset.group) === currentGroup));
+    document.getElementById("groupFilter").value = currentGroup;
     await loadGroup();
 
     // restore date if available
