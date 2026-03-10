@@ -623,22 +623,16 @@ function setComment(idx, comment) {
 }
 
 // Audio playback:
-// HTTP audio on HTTPS site can't play inline (mixed content).
-// On HTTPS: open HTTP audio URL in new tab (browser handles it fine).
-// On HTTP: play inline normally.
-function playAudio(btn, rawUrl) {
-  // mixed content: HTTPS page can't load HTTP audio inline — open in new tab via link click
+// On HTTPS: proxy HTTP audio through /audio/ (Cloudflare Pages Function) for inline playback.
+// On HTTP: play directly.
+function getAudioUrl(rawUrl) {
   if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
-    const a = document.createElement('a');
-    a.href = rawUrl;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return;
+    return rawUrl.replace('http://assist.intmarksol.com/api/', '/audio/');
   }
+  return rawUrl;
+}
 
+function playAudio(btn, rawUrl) {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -651,7 +645,7 @@ function playAudio(btn, rawUrl) {
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
-  audio.src = rawUrl;
+  audio.src = getAudioUrl(rawUrl);
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   btn.classList.add('playing');
@@ -977,12 +971,42 @@ async function goToPlayer(group, date, operator, aiFilter) {
 
   currentGroup = group;
   document.getElementById("groupFilter").value = group;
-  await loadGroup();
+
+  // load group dates without loading date data (we'll load specific date below)
+  const base = getBase();
+  try {
+    const resp = await fetch(base + "dates.json");
+    const dates = await resp.json();
+    DATES = dates;
+    ALL_GROUPS[currentGroup] = dates;
+    const sel = document.getElementById("dateFilter");
+    sel.innerHTML = dates.map(d =>
+      `<option value="${d.date}">${d.label} — ${d.sites} сайтов, recall ${d.recall}%</option>`
+    ).join("");
+  } catch(e) { return; }
+
+  // load target date data
   document.getElementById("dateFilter").value = date;
-  await loadDate(date);
+  try {
+    const resp = await fetch(base + date + ".json");
+    DATA = await resp.json();
+    assignOpColors();
+    populateOperators();
+  } catch(e) { return; }
+
+  // set all filters BEFORE applying
   if (operator) document.getElementById("opFilter").value = operator;
   document.getElementById("aiFilter").value = aiFilter || "all";
   document.getElementById("filter").value = "all";
+
+  // update subtitle
+  const d = DATES.find(x => x.date === date);
+  if (d) {
+    const aiLabel = d.ai ? ` · AI ${d.ai.accuracy}%` : '';
+    document.getElementById("subtitle").textContent =
+      `${d.label} · Группа ${currentGroup} · ${d.sites} сайтов · Recall ${d.recall}%${aiLabel}`;
+  }
+
   updateStatusCounts();
   applyFilters();
   saveFilters();
