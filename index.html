@@ -439,7 +439,7 @@ function renderRow(d, globalIdx) {
     </div>`;
   }
 
-  // ai_only verdict block — AI found, operator left empty
+  // ai_only verdict block — same layout as disagree: two-column compare
   if (d.ai_vs_op === 'ai_only' && d.ai_phone) {
     const aiRec = d.recs.find(r => r.callerid === d.ai_phone || d.ai_phone.includes(r.callerid) || r.callerid.includes(d.ai_phone));
     const aiSnippet2 = aiRec ? escHtml(aiRec.transcript.slice(0, 120)) + (aiRec.transcript.length > 120 ? '...' : '') : '';
@@ -449,11 +449,16 @@ function renderRow(d, globalIdx) {
     const vWrong = v?.verdict === 'ai_wrong' ? ' active-ai-wrong' : '';
     const vComment = v?.comment || '';
 
-    compareHtml = `<div style="margin:10px 0">
-      <div class="pick ai-pick" style="display:inline-block;padding:10px 14px;border-radius:8px">
-        <div class="pick-label">AI выбрал</div>
+    compareHtml = `<div class="disagree-compare">
+      <div class="pick op-pick" style="opacity:0.5">
+        <div class="pick-label">Оператор</div>
+        <div class="pick-phone" style="color:#b2bec3">\u2014 пусто</div>
+      </div>
+      <div class="pick ai-pick">
+        <div class="pick-label">AI</div>
         <div class="pick-phone">${escHtml(d.ai_phone)}</div>
-        ${aiSnippet2 ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${aiSnippet2}</div>` : ''}
+        ${d.ai_reasoning ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${escHtml(d.ai_reasoning)}</div>` : ''}
+        ${aiSnippet2 ? `<div style="font-size:11px;color:#636e72;margin-top:2px">${aiSnippet2}</div>` : ''}
         ${aiAudio2}
       </div>
     </div>
