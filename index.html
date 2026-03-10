@@ -614,15 +614,16 @@ function setComment(idx, comment) {
 }
 
 // Audio playback:
-// HTTPS + HTTP audio = mixed content blocked → open in new tab
-// HTTP site or same-protocol → inline playback
-function playAudio(btn, rawUrl) {
-  // HTTPS site can't play HTTP audio inline — open in new tab
+// On HTTPS: rewrite HTTP URL through /audio proxy (Cloudflare Pages Function or Netlify)
+// Fallback: open raw URL in new tab
+function getAudioUrl(rawUrl) {
   if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
-    window.open(rawUrl, '_blank');
-    return;
+    return rawUrl.replace('http://assist.intmarksol.com/api/', '/audio/');
   }
+  return rawUrl;
+}
 
+function playAudio(btn, rawUrl) {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -632,10 +633,12 @@ function playAudio(btn, rawUrl) {
     currentAudio = null;
   }
 
+  const url = getAudioUrl(rawUrl);
+
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
-  audio.src = rawUrl;
+  audio.src = url;
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   btn.classList.add('playing');
