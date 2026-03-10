@@ -494,11 +494,17 @@ function renderRow(d, globalIdx) {
     </div>`;
   }
 
-  // op_only: operator found, AI didn't
+  // op_only: operator found, AI didn't — with verdict buttons
   if (d.ai_vs_op === 'op_only' && d.operator_phone) {
     const opRec2 = d.recs.find(r => r.callerid === d.operator_phone || d.operator_phone.includes(r.callerid) || r.callerid.includes(d.operator_phone));
     const opSnippet2 = opRec2 ? escHtml(opRec2.transcript.slice(0, 100)) + (opRec2.transcript.length > 100 ? '...' : '') : '';
     const opAudio2 = opRec2?.audio ? `<button class="audio-btn" style="width:28px;height:28px;font-size:11px;margin-top:6px" onclick="playAudio(this,'${escAttr(opRec2.audio)}')">&#9654;</button>` : '';
+
+    const v = loadVerdict(currentGroup, date, d.idx);
+    const vComment = v?.comment || '';
+    const vOp = v?.verdict === 'op' ? ' active-op' : '';
+    const vOpWrong = v?.verdict === 'op_wrong' ? ' active-both-wrong' : '';
+
     compareHtml = `<div class="disagree-compare">
       <div class="pick op-pick">
         <div class="pick-label">Оператор</div>
@@ -511,10 +517,18 @@ function renderRow(d, globalIdx) {
         <div class="pick-phone" style="color:#b2bec3">\u2014 не нашёл</div>
         ${d.ai_reasoning ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${escHtml(d.ai_reasoning)}</div>` : ''}
       </div>
+    </div>
+    <div class="verdict-bar" data-idx="${d.idx}">
+      <button class="verdict-btn${vOp}" onclick="setVerdict(this,${d.idx},'op')">ОП верно</button>
+      <button class="verdict-btn${vOpWrong}" onclick="setVerdict(this,${d.idx},'op_wrong')">ОП неверно</button>
+      <span class="verdict-saved" id="saved-${d.idx}">Сохранено</span>
+      <div class="verdict-row2">
+        <input class="verdict-comment" placeholder="Комментарий..." value="${escAttr(vComment)}" onchange="setComment(${d.idx}, this.value)">
+      </div>
     </div>`;
   }
 
-  const disagreeClass = d.ai_vs_op === 'disagree' ? ' row-disagree' : d.ai_vs_op === 'ai_only' ? ' row-ai-only' : '';
+  const disagreeClass = d.ai_vs_op === 'disagree' ? ' row-disagree' : d.ai_vs_op === 'ai_only' ? ' row-ai-only' : d.ai_vs_op === 'op_only' ? ' row-op-only' : '';
 
   return `
     <div class="row ${si.cls}${disagreeClass}">
@@ -593,7 +607,7 @@ function setVerdict(btn, idx, verdict) {
 
   // set active button style
   bar.querySelectorAll('.verdict-btn').forEach(b => b.className = 'verdict-btn');
-  const cls = {ai:'active-ai', op:'active-op', both_right:'active-both-right', both_wrong:'active-both-wrong', ai_wrong:'active-ai-wrong'};
+  const cls = {ai:'active-ai', op:'active-op', both_right:'active-both-right', both_wrong:'active-both-wrong', ai_wrong:'active-ai-wrong', op_wrong:'active-both-wrong'};
   btn.classList.add(cls[verdict] || 'active-both-wrong');
   saveVerdict(currentGroup, date, idx, verdict, comment);
 
@@ -614,16 +628,16 @@ function setComment(idx, comment) {
 }
 
 // Audio playback:
-// On HTTPS: rewrite HTTP URL through /audio proxy (Cloudflare Pages Function or Netlify)
-// Fallback: open raw URL in new tab
-function getAudioUrl(rawUrl) {
-  if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
-    return rawUrl.replace('http://assist.intmarksol.com/api/', '/audio/');
-  }
-  return rawUrl;
-}
-
+// HTTP audio on HTTPS site can't play inline (mixed content).
+// On HTTPS: open HTTP audio URL in new tab (browser handles it fine).
+// On HTTP: play inline normally.
 function playAudio(btn, rawUrl) {
+  // mixed content: HTTPS page can't load HTTP audio inline — open in new tab
+  if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
+    window.open(rawUrl, '_blank');
+    return;
+  }
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -633,12 +647,10 @@ function playAudio(btn, rawUrl) {
     currentAudio = null;
   }
 
-  const url = getAudioUrl(rawUrl);
-
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
-  audio.src = url;
+  audio.src = rawUrl;
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   btn.classList.add('playing');
