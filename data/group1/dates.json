@@ -38,14 +38,6 @@
         "recall": 98,
         "unique_phones": 54
       }
-    },
-    "ai": {
-      "processed": 573,
-      "agree": 95,
-      "disagree": 112,
-      "ai_only": 329,
-      "op_only": 37,
-      "accuracy": 46
     }
   },
   {
@@ -87,14 +79,6 @@
         "recall": 99,
         "unique_phones": 85
       }
-    },
-    "ai": {
-      "processed": 1165,
-      "agree": 170,
-      "disagree": 208,
-      "ai_only": 673,
-      "op_only": 114,
-      "accuracy": 45
     }
   },
   {
@@ -136,14 +120,6 @@
         "recall": 97,
         "unique_phones": 114
       }
-    },
-    "ai": {
-      "processed": 1110,
-      "agree": 229,
-      "disagree": 170,
-      "ai_only": 598,
-      "op_only": 113,
-      "accuracy": 57
     }
   },
   {
@@ -152,8 +128,8 @@
     "sites": 1720,
     "matched": 443,
     "mismatched": 8,
-    "op_empty": 1105,
-    "no_recs": 164,
+    "op_empty": 1115,
+    "no_recs": 154,
     "recall": 98,
     "unique_phones": 210,
     "operators": {
@@ -185,14 +161,6 @@
         "recall": 99,
         "unique_phones": 91
       }
-    },
-    "ai": {
-      "processed": 0,
-      "agree": 0,
-      "disagree": 0,
-      "ai_only": 0,
-      "op_only": 0,
-      "accuracy": 0
     }
   },
   {
@@ -201,8 +169,8 @@
     "sites": 1732,
     "matched": 525,
     "mismatched": 1,
-    "op_empty": 972,
-    "no_recs": 234,
+    "op_empty": 1000,
+    "no_recs": 206,
     "recall": 99,
     "unique_phones": 254,
     "operators": {
@@ -234,14 +202,47 @@
         "recall": 98,
         "unique_phones": 180
       }
-    },
-    "ai": {
-      "processed": 0,
-      "agree": 0,
-      "disagree": 0,
-      "ai_only": 0,
-      "op_only": 0,
-      "accuracy": 0
+    }
+  },
+  {
+    "date": "2026-03-10",
+    "label": "10.03",
+    "sites": 1716,
+    "matched": 0,
+    "mismatched": 0,
+    "op_empty": 387,
+    "no_recs": 1329,
+    "recall": 0,
+    "unique_phones": 0,
+    "operators": {
+      "Светлана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Елена": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Диана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Юлия": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 429,
+        "recall": 0,
+        "unique_phones": 0
+      }
     }
   }
 ]
