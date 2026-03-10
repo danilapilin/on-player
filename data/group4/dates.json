@@ -128,6 +128,40 @@
       "ai_only": 523,
       "op_only": 92,
       "accuracy": 62
+    },
+    "ai_operators": {
+      "Мария": {
+        "processed": 201,
+        "agree": 41,
+        "disagree": 29,
+        "ai_only": 107,
+        "op_only": 24,
+        "accuracy": 59
+      },
+      "Марина": {
+        "processed": 240,
+        "agree": 54,
+        "disagree": 28,
+        "ai_only": 137,
+        "op_only": 21,
+        "accuracy": 66
+      },
+      "Алина": {
+        "processed": 275,
+        "agree": 77,
+        "disagree": 48,
+        "ai_only": 128,
+        "op_only": 22,
+        "accuracy": 62
+      },
+      "Светлана": {
+        "processed": 277,
+        "agree": 62,
+        "disagree": 39,
+        "ai_only": 151,
+        "op_only": 25,
+        "accuracy": 61
+      }
     }
   },
   {
@@ -177,6 +211,40 @@
       "ai_only": 407,
       "op_only": 134,
       "accuracy": 68
+    },
+    "ai_operators": {
+      "Мария": {
+        "processed": 189,
+        "agree": 57,
+        "disagree": 25,
+        "ai_only": 73,
+        "op_only": 34,
+        "accuracy": 70
+      },
+      "Марина": {
+        "processed": 225,
+        "agree": 56,
+        "disagree": 24,
+        "ai_only": 120,
+        "op_only": 25,
+        "accuracy": 70
+      },
+      "Алина": {
+        "processed": 243,
+        "agree": 75,
+        "disagree": 30,
+        "ai_only": 92,
+        "op_only": 46,
+        "accuracy": 71
+      },
+      "Светлана": {
+        "processed": 244,
+        "agree": 57,
+        "disagree": 36,
+        "ai_only": 122,
+        "op_only": 29,
+        "accuracy": 61
+      }
     }
   },
   {
@@ -226,6 +294,40 @@
       "ai_only": 290,
       "op_only": 79,
       "accuracy": 74
+    },
+    "ai_operators": {
+      "Мария": {
+        "processed": 122,
+        "agree": 42,
+        "disagree": 10,
+        "ai_only": 47,
+        "op_only": 23,
+        "accuracy": 81
+      },
+      "Марина": {
+        "processed": 163,
+        "agree": 45,
+        "disagree": 15,
+        "ai_only": 87,
+        "op_only": 16,
+        "accuracy": 75
+      },
+      "Алина": {
+        "processed": 157,
+        "agree": 52,
+        "disagree": 13,
+        "ai_only": 77,
+        "op_only": 15,
+        "accuracy": 80
+      },
+      "Светлана": {
+        "processed": 174,
+        "agree": 44,
+        "disagree": 26,
+        "ai_only": 79,
+        "op_only": 25,
+        "accuracy": 63
+      }
     }
   },
   {

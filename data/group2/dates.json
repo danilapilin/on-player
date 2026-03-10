@@ -128,6 +128,40 @@
       "ai_only": 593,
       "op_only": 68,
       "accuracy": 65
+    },
+    "ai_operators": {
+      "Милана": {
+        "processed": 232,
+        "agree": 46,
+        "disagree": 17,
+        "ai_only": 150,
+        "op_only": 19,
+        "accuracy": 73
+      },
+      "Кристина": {
+        "processed": 247,
+        "agree": 54,
+        "disagree": 26,
+        "ai_only": 156,
+        "op_only": 11,
+        "accuracy": 68
+      },
+      "Наталья": {
+        "processed": 271,
+        "agree": 65,
+        "disagree": 35,
+        "ai_only": 160,
+        "op_only": 11,
+        "accuracy": 65
+      },
+      "Анастасия": {
+        "processed": 237,
+        "agree": 48,
+        "disagree": 35,
+        "ai_only": 127,
+        "op_only": 27,
+        "accuracy": 58
+      }
     }
   },
   {
@@ -177,6 +211,40 @@
       "ai_only": 505,
       "op_only": 83,
       "accuracy": 70
+    },
+    "ai_operators": {
+      "Милана": {
+        "processed": 218,
+        "agree": 49,
+        "disagree": 21,
+        "ai_only": 127,
+        "op_only": 21,
+        "accuracy": 70
+      },
+      "Кристина": {
+        "processed": 225,
+        "agree": 58,
+        "disagree": 21,
+        "ai_only": 127,
+        "op_only": 19,
+        "accuracy": 73
+      },
+      "Наталья": {
+        "processed": 253,
+        "agree": 63,
+        "disagree": 33,
+        "ai_only": 138,
+        "op_only": 19,
+        "accuracy": 66
+      },
+      "Анастасия": {
+        "processed": 221,
+        "agree": 59,
+        "disagree": 25,
+        "ai_only": 113,
+        "op_only": 24,
+        "accuracy": 70
+      }
     }
   },
   {
@@ -226,6 +294,40 @@
       "ai_only": 329,
       "op_only": 60,
       "accuracy": 85
+    },
+    "ai_operators": {
+      "Милана": {
+        "processed": 150,
+        "agree": 53,
+        "disagree": 8,
+        "ai_only": 78,
+        "op_only": 11,
+        "accuracy": 87
+      },
+      "Кристина": {
+        "processed": 175,
+        "agree": 55,
+        "disagree": 10,
+        "ai_only": 96,
+        "op_only": 14,
+        "accuracy": 85
+      },
+      "Наталья": {
+        "processed": 208,
+        "agree": 80,
+        "disagree": 15,
+        "ai_only": 97,
+        "op_only": 16,
+        "accuracy": 84
+      },
+      "Анастасия": {
+        "processed": 160,
+        "agree": 70,
+        "disagree": 13,
+        "ai_only": 58,
+        "op_only": 19,
+        "accuracy": 84
+      }
     }
   },
   {

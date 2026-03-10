@@ -381,7 +381,31 @@ def compute_ai_stats(data):
     return stats
 
 
-def update_dates_json(group_num, target_date, ai_stats):
+def compute_ai_stats_by_operator(data):
+    """AI агрегаты в разбивке по операторам."""
+    by_op = {}
+
+    for row in data:
+        vs = row.get("ai_vs_op", "skip")
+        if vs in ("skip", "both_empty"):
+            continue
+
+        op = row.get("operator", "?")
+        if op not in by_op:
+            by_op[op] = {"processed": 0, "agree": 0, "disagree": 0, "ai_only": 0, "op_only": 0}
+
+        by_op[op]["processed"] += 1
+        if vs in by_op[op]:
+            by_op[op][vs] += 1
+
+    for stats in by_op.values():
+        decided = stats["agree"] + stats["disagree"]
+        stats["accuracy"] = round(stats["agree"] / decided * 100) if decided else 0
+
+    return by_op
+
+
+def update_dates_json(group_num, target_date, ai_stats, ai_stats_by_op=None):
     """Добавляет AI статистику в dates.json."""
     dates = load_dates_json(group_num)
     if not dates:
@@ -390,13 +414,57 @@ def update_dates_json(group_num, target_date, ai_stats):
     for d in dates:
         if d["date"] == target_date:
             d["ai"] = ai_stats
+            if ai_stats_by_op is not None:
+                d["ai_operators"] = ai_stats_by_op
             break
 
     save_dates_json(group_num, dates)
     log.info("Group %d: updated dates.json with AI stats", group_num)
 
 
+def backfill_stats():
+    """Пересчитывает AI-статистику из существующих JSON без вызова Claude."""
+    log.info("=== BACKFILL STATS MODE ===")
+
+    for group_num in range(1, NUM_GROUPS + 1):
+        dates = load_dates_json(group_num)
+        if not dates:
+            continue
+
+        updated = False
+        for d in dates:
+            data = load_date_data(group_num, d["date"])
+            if not data:
+                continue
+
+            # пропускаем даты без AI-обработки
+            if not any(row.get("ai_vs_op") for row in data):
+                continue
+
+            ai_stats = compute_ai_stats(data)
+            ai_by_op = compute_ai_stats_by_operator(data)
+
+            d["ai"] = ai_stats
+            d["ai_operators"] = ai_by_op
+            updated = True
+
+            log.info(
+                "Group %d / %s: accuracy=%d%%, operators: %s",
+                group_num, d["date"], ai_stats["accuracy"],
+                ", ".join(f"{op}={s['accuracy']}%" for op, s in ai_by_op.items()),
+            )
+
+        if updated:
+            save_dates_json(group_num, dates)
+            log.info("Group %d: dates.json updated", group_num)
+
+
 async def main():
+    # --backfill-stats: пересчёт статистики без вызова Claude
+    if "--backfill-stats" in sys.argv:
+        backfill_stats()
+        return
+
     dry_run = "--dry-run" in sys.argv
     reprocess = "--reprocess" in sys.argv
 
@@ -457,6 +525,7 @@ async def main():
                 continue
 
             ai_stats = compute_ai_stats(data)
+            ai_by_op = compute_ai_stats_by_operator(data)
             log.info(
                 "Group %d: processed=%d, agree=%d, disagree=%d, "
                 "ai_only=%d, op_only=%d, accuracy=%d%%",
@@ -466,7 +535,7 @@ async def main():
             )
 
             if not dry_run:
-                update_dates_json(group_num, target_date, ai_stats)
+                update_dates_json(group_num, target_date, ai_stats, ai_by_op)
 
             for k in total_stats:
                 total_stats[k] += ai_stats.get(k, 0)
