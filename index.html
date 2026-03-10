@@ -719,17 +719,18 @@ function renderAnalytics(selectedDate) {
   }
   const weekAgo = weekAgoDate ? byDate[weekAgoDate] : null;
 
+  function fmtDelta(d) { return Number.isInteger(d) ? Math.abs(d) : Math.abs(d).toFixed(1); }
   function dlt(cur, prv, up) {
     if (prv === null || prv === undefined) return '';
     const d = cur - prv; if (d === 0) return '';
     const ok = up === undefined ? d > 0 : (up ? d > 0 : d < 0);
-    return `<span style="font-size:12px;color:${ok?'#00b894':'#d63031'};margin-left:4px">${d>0?'↑':'↓'}${Math.abs(d)}</span>`;
+    return `<span style="font-size:12px;color:${ok?'#00b894':'#d63031'};margin-left:4px">${d>0?'↑':'↓'}${fmtDelta(d)}</span>`;
   }
   function dltBlock(cur, prv, up) {
     if (prv === null || prv === undefined) return '';
     const d = cur - prv; if (d === 0) return '';
     const ok = up === undefined ? d > 0 : (up ? d > 0 : d < 0);
-    return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'}${Math.abs(d)}</div>`;
+    return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'}${fmtDelta(d)}</div>`;
   }
   function potColor(v) { return v >= 80 ? '#00b894' : v >= 60 ? '#e17055' : '#d63031'; }
 
@@ -744,9 +745,9 @@ function renderAnalytics(selectedDate) {
   // ═══ SECTION 1: Сбор ОН (recall + УОН) ═══
   html += `<div class="card"><h2>Сбор ОН — ${dl[reportDate]}</h2>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall</div>${dltBlock(last.recall, prev?.recall, true)}</div>
-      <div class="stat-box"><div class="val">${last.uph}</div><div class="lbl">УОН (уник. номера)</div>${dltBlock(last.uph, prev?.uph, true)}</div>
-      <div class="stat-box"><div class="val">${last.uon_pct}%</div><div class="lbl">% УОН</div>${dltBlock(last.uon_pct, prev?.uon_pct, true)}</div>
+      <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall</div><div style="font-size:11px;color:#636e72">${last.matched} / (${last.matched}+${last.mismatched})</div>${dltBlock(last.recall, prev?.recall, true)}</div>
+      <div class="stat-box"><div class="val">${last.uph}</div><div class="lbl">УОН (уник. номера)</div><div style="font-size:11px;color:#636e72">${last.uph} из ${last.sites} проверок</div>${dltBlock(last.uph, prev?.uph, true)}</div>
+      <div class="stat-box"><div class="val">${last.uon_pct}%</div><div class="lbl">% УОН</div><div style="font-size:11px;color:#636e72">УОН / Проверок</div>${dltBlock(last.uon_pct, prev?.uon_pct, true)}</div>
       <div class="stat-box"><div class="val">${last.sites}</div><div class="lbl">Проверок (ОН)</div>${dltBlock(last.sites, prev?.sites, true)}</div>
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#636e72">
@@ -806,7 +807,7 @@ function renderAnalytics(selectedDate) {
       <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
         <div class="stat-box" style="border:2px solid #a29bfe"><div class="val" style="color:#a29bfe">${totAcc}%</div><div class="lbl">Точность</div><div style="font-size:11px;color:#636e72">AI=ОП / (AI=ОП + AI≠ОП)</div>${dltBlock(totAcc, prevDate ? prevAcc : null, true)}</div>
         <div class="stat-box" style="border:2px solid ${potColor(totPot)}"><div class="val" style="color:${potColor(totPot)}">${totPot}%</div><div class="lbl">Потенциал</div><div style="font-size:11px;color:#636e72">(AI=ОП + Только AI) / Всего</div>${dltBlock(totPot, prevDate ? prevPot : null, true)}</div>
-        <div class="stat-box"><div class="val">${totProcessed}</div><div class="lbl">Обработано</div></div>
+        <div class="stat-box"><div class="val">${totProcessed}</div><div class="lbl">Обработано AI</div><div style="font-size:11px;color:#636e72">из ${last.sites} (где есть записи)</div></div>
         <div class="stat-box" style="border:2px solid ${totalReviewed >= totalToReview ? '#00b894' : '#e17055'}"><div class="val" style="color:${totalReviewed >= totalToReview ? '#00b894' : '#e17055'}">${totalReviewed}/${totalToReview}</div><div class="lbl">Проверено</div><div style="font-size:11px;color:#636e72">вердиктов</div></div>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#636e72">
@@ -1051,7 +1052,7 @@ function renderFocusMode() {
   const stickyNav = document.getElementById("stickyNav");
   const date = document.getElementById('dateFilter').value;
   const aiF = document.getElementById("aiFilter").value;
-  const isReviewMode = (aiF === 'disagree' || aiF === 'ai_only');
+  const isReviewMode = (aiF === 'disagree' || aiF === 'ai_only' || aiF === 'op_only');
 
   if (!FILTERED.length) {
     // show nav with 0/0 so it doesn't disappear
