@@ -495,7 +495,8 @@ function renderRow(d, globalIdx) {
     const opSnippet2 = opRec2 ? escHtml(opRec2.transcript.slice(0, 100)) + (opRec2.transcript.length > 100 ? '...' : '') : '';
     const opAudio2 = opRec2?.audio ? `<button class="audio-btn" style="width:28px;height:28px;font-size:11px;margin-top:6px" onclick="playAudio(this,'${escAttr(opRec2.audio)}')">&#9654;</button>` : '';
 
-    const v = loadVerdict(currentGroup, date, d.idx);
+    const _date = document.getElementById('dateFilter').value;
+    const v = getVerdict(currentGroup, _date, d.idx);
     const vComment = v?.comment || '';
     const vOp = v?.verdict === 'op' ? ' active-op' : '';
     const vOpWrong = v?.verdict === 'op_wrong' ? ' active-both-wrong' : '';
