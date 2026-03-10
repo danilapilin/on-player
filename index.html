@@ -283,15 +283,27 @@ async function switchTab(tab) {
 async function loadAllGroupsData() {
   const fetches = [];
   for (let g = 1; g <= 4; g++) {
-    if (ALL_GROUPS[g]) continue;
-    fetches.push(
-      fetch(`data/group${g}/dates.json`)
-        .then(r => r.json())
-        .then(data => { ALL_GROUPS[g] = data; })
-        .catch(() => {})
-    );
+    if (!ALL_GROUPS[g]) {
+      fetches.push(
+        fetch(`data/group${g}/dates.json`)
+          .then(r => r.json())
+          .then(data => { ALL_GROUPS[g] = data; })
+          .catch(() => {})
+      );
+    }
   }
   await Promise.all(fetches);
+
+  // preload verdicts for all groups for the report date (for analytics reviewed count)
+  const allDates = [...new Set(Object.values(ALL_GROUPS).flatMap(g => g.map(d => d.date)))].sort();
+  const reportDate = allDates.length >= 2 ? allDates[allDates.length - 2] : allDates[allDates.length - 1];
+  if (reportDate) {
+    const vFetches = [];
+    for (let g = 1; g <= 4; g++) {
+      if (ALL_GROUPS[g]) vFetches.push(loadVerdicts(g, reportDate));
+    }
+    await Promise.all(vFetches);
+  }
 }
 
 function statusInfo(st) {
@@ -592,7 +604,7 @@ function setVerdict(btn, idx, verdict) {
 
   // toggle off if same verdict clicked again
   if (existing?.verdict === verdict) {
-    localStorage.removeItem(`review_${currentGroup}_${date}_${idx}`);
+    deleteVerdict(currentGroup, date, idx);
     bar.querySelectorAll('.verdict-btn').forEach(b => b.className = 'verdict-btn');
     if (row) row.classList.remove('row-reviewed');
     updateReviewCounter();
@@ -793,13 +805,14 @@ function renderAnalytics(selectedDate) {
     const prevAcc = prevDec ? Math.round(prevAgree / prevDec * 100) : 0;
     const prevPot = prevProcessed ? Math.round((prevAgree + prevAiOnly) / prevProcessed * 100) : 0;
 
-    // count reviewed verdicts
+    // count reviewed verdicts from server cache
     let totalReviewed = 0;
     const totalToReview = totDisagree + totAiOnly + totOpOnly;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.match(new RegExp(`^review_\\d+_${reportDate}_`))) totalReviewed++;
-    }
+    gNums.forEach(g => {
+      const ck = _cacheKey(g, reportDate);
+      const cache = VERDICTS_CACHE[ck];
+      if (cache) totalReviewed += Object.keys(cache).length;
+    });
 
     html += `<div class="card"><h2>AI Matching — ${dl[reportDate]}</h2>
       <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
@@ -996,44 +1009,76 @@ async function goToPlayer(group, date, operator, aiFilter) {
   saveFilters();
 }
 
-// localStorage helpers for operator verdicts
-function getVerdict(group, date, idx) {
+// ─── Verdicts: server-side KV storage with in-memory cache ───
+
+const VERDICTS_CACHE = {}; // { "group_date": { "idx": { verdict, comment, ts } } }
+
+function _cacheKey(group, date) { return `${group}_${date}`; }
+
+async function loadVerdicts(group, date) {
+  const ck = _cacheKey(group, date);
   try {
-    const raw = localStorage.getItem(`review_${group}_${date}_${idx}`);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+    const resp = await fetch(`/api/verdicts?group=${group}&date=${date}`);
+    if (resp.ok) {
+      VERDICTS_CACHE[ck] = await resp.json();
+    }
+  } catch {
+    // offline — use what's in cache already
+  }
+  return VERDICTS_CACHE[ck] || {};
+}
+
+function getVerdict(group, date, idx) {
+  const ck = _cacheKey(group, date);
+  const cache = VERDICTS_CACHE[ck];
+  if (!cache) return null;
+  return cache[String(idx)] || null;
 }
 
 function saveVerdict(group, date, idx, verdict, comment) {
-  const data = { verdict, comment, ts: new Date().toISOString() };
-  localStorage.setItem(`review_${group}_${date}_${idx}`, JSON.stringify(data));
+  const data = { verdict, comment: comment || "", ts: new Date().toISOString() };
+
+  // update in-memory cache immediately
+  const ck = _cacheKey(group, date);
+  if (!VERDICTS_CACHE[ck]) VERDICTS_CACHE[ck] = {};
+  VERDICTS_CACHE[ck][String(idx)] = data;
+
+  // persist to server (fire-and-forget)
+  fetch('/api/verdicts', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ group, date, idx, verdict, comment: comment || "" }),
+  }).catch(() => {});
+
   // flash "saved" indicator
   const el = document.getElementById(`saved-${idx}`);
   if (el) { el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1500); }
 }
 
-function countReviewed(group, date, operator) {
-  let count = 0;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith(`review_${group}_${date}_`)) {
-      // if operator filter, need to check the actual data — for simplicity count all for group+date
-      count++;
-    }
-  }
-  return count;
+function deleteVerdict(group, date, idx) {
+  // remove from cache
+  const ck = _cacheKey(group, date);
+  if (VERDICTS_CACHE[ck]) delete VERDICTS_CACHE[ck][String(idx)];
+
+  // remove from server
+  fetch(`/api/verdicts?group=${group}&date=${date}&idx=${idx}`, { method: 'DELETE' }).catch(() => {});
+}
+
+function countReviewed(group, date) {
+  const ck = _cacheKey(group, date);
+  const cache = VERDICTS_CACHE[ck];
+  return cache ? Object.keys(cache).length : 0;
 }
 
 function exportVerdicts() {
   const rows = [['group','date','idx','site','operator','operator_phone','ai_phone','verdict','comment']];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    const m = key.match(/^review_(\d+)_(\d{4}-\d{2}-\d{2})_(\d+)$/);
-    if (!m) continue;
-    const v = JSON.parse(localStorage.getItem(key));
-    // find row data from current DATA if available
-    const row = DATA.find(d => d.idx == m[3]);
-    rows.push([m[1], m[2], m[3], row?.site||'', row?.operator||'', row?.operator_phone||'', row?.ai_phone||'', v.verdict, v.comment||'']);
+  // export all cached verdicts
+  for (const [ck, verdicts] of Object.entries(VERDICTS_CACHE)) {
+    const [group, date] = ck.split('_');
+    for (const [idx, v] of Object.entries(verdicts)) {
+      const row = DATA.find(d => d.idx == idx);
+      rows.push([group, date, idx, row?.site||'', row?.operator||'', row?.operator_phone||'', row?.ai_phone||'', v.verdict, v.comment||'']);
+    }
   }
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
@@ -1169,7 +1214,11 @@ async function loadDate(dateIso) {
   const base = getBase();
   document.getElementById("list").innerHTML = '<div class="loading">Загрузка данных...</div>';
   try {
-    const resp = await fetch(base + dateIso + ".json");
+    // load date data + verdicts in parallel
+    const [resp] = await Promise.all([
+      fetch(base + dateIso + ".json"),
+      loadVerdicts(currentGroup, dateIso),
+    ]);
     DATA = await resp.json();
     assignOpColors();
     populateOperators();
