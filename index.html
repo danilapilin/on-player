@@ -627,9 +627,15 @@ function setComment(idx, comment) {
 // On HTTPS: open HTTP audio URL in new tab (browser handles it fine).
 // On HTTP: play inline normally.
 function playAudio(btn, rawUrl) {
-  // mixed content: HTTPS page can't load HTTP audio inline — open in new tab
+  // mixed content: HTTPS page can't load HTTP audio inline — open in new tab via link click
   if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
-    window.open(rawUrl, '_blank');
+    const a = document.createElement('a');
+    a.href = rawUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     return;
   }
 
@@ -961,7 +967,14 @@ function renderAnalytics(selectedDate) {
 // ─── AI Review tab ───
 
 async function goToPlayer(group, date, operator, aiFilter) {
-  // navigate to player tab with specific group, date, operator, and AI filter
+  // switch to player tab first so UI elements are visible
+  currentTab = "player";
+  document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i === 0));
+  document.getElementById("playerView").classList.remove("hidden");
+  document.getElementById("playerControls").style.display = "flex";
+  document.getElementById("dateStats").style.display = "flex";
+  document.getElementById("analyticsView").classList.remove("visible");
+
   currentGroup = group;
   document.getElementById("groupFilter").value = group;
   await loadGroup();
@@ -972,7 +985,6 @@ async function goToPlayer(group, date, operator, aiFilter) {
   document.getElementById("filter").value = "all";
   updateStatusCounts();
   applyFilters();
-  switchTab("player");
   saveFilters();
 }
 
