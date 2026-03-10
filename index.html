@@ -393,8 +393,30 @@ function renderRow(d, globalIdx) {
 
   const aiReasonHtml = d.ai_reasoning ? `<div class="ai-reasoning"><strong style="color:#a29bfe">AI:</strong> ${escHtml(d.ai_reasoning)}${d.ai_phone ? " <strong style='color:#a29bfe'>\u2192 " + d.ai_phone + "</strong>" : ""}</div>` : "";
 
-  // disagree comparison block with verdict
+  // comparison block — unified two-column layout for all AI statuses
   let compareHtml = '';
+
+  // agree: both picked the same — show side by side (no verdict needed)
+  if (d.ai_vs_op === 'agree' && d.operator_phone && d.ai_phone) {
+    const matchRec = d.recs.find(r => r.callerid === d.operator_phone || d.operator_phone.includes(r.callerid) || r.callerid.includes(d.operator_phone));
+    const matchSnippet = matchRec ? escHtml(matchRec.transcript.slice(0, 100)) + (matchRec.transcript.length > 100 ? '...' : '') : '';
+    const matchAudio = matchRec?.audio ? `<button class="audio-btn" style="width:28px;height:28px;font-size:11px;margin-top:6px" onclick="playAudio(this,'${escAttr(matchRec.audio)}')">&#9654;</button>` : '';
+    compareHtml = `<div class="disagree-compare">
+      <div class="pick op-pick">
+        <div class="pick-label">Оператор</div>
+        <div class="pick-phone">${escHtml(d.operator_phone)}</div>
+        ${matchSnippet ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${matchSnippet}</div>` : ''}
+        ${matchAudio}
+      </div>
+      <div class="pick ai-pick">
+        <div class="pick-label">AI</div>
+        <div class="pick-phone">${escHtml(d.ai_phone)}</div>
+        ${d.ai_reasoning ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${escHtml(d.ai_reasoning)}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // disagree: different picks — verdict buttons
   if (d.ai_vs_op === 'disagree' && d.operator_phone && d.ai_phone) {
     // find transcript snippets for each pick
     const opRec = d.recs.find(r => r.callerid === d.operator_phone || d.operator_phone.includes(r.callerid) || r.callerid.includes(d.operator_phone));
@@ -468,6 +490,26 @@ function renderRow(d, globalIdx) {
       <span class="verdict-saved" id="saved-${d.idx}">Сохранено</span>
       <div class="verdict-row2">
         <input class="verdict-comment" placeholder="Комментарий..." value="${escAttr(vComment)}" onchange="setComment(${d.idx}, this.value)">
+      </div>
+    </div>`;
+  }
+
+  // op_only: operator found, AI didn't
+  if (d.ai_vs_op === 'op_only' && d.operator_phone) {
+    const opRec2 = d.recs.find(r => r.callerid === d.operator_phone || d.operator_phone.includes(r.callerid) || r.callerid.includes(d.operator_phone));
+    const opSnippet2 = opRec2 ? escHtml(opRec2.transcript.slice(0, 100)) + (opRec2.transcript.length > 100 ? '...' : '') : '';
+    const opAudio2 = opRec2?.audio ? `<button class="audio-btn" style="width:28px;height:28px;font-size:11px;margin-top:6px" onclick="playAudio(this,'${escAttr(opRec2.audio)}')">&#9654;</button>` : '';
+    compareHtml = `<div class="disagree-compare">
+      <div class="pick op-pick">
+        <div class="pick-label">Оператор</div>
+        <div class="pick-phone">${escHtml(d.operator_phone)}</div>
+        ${opSnippet2 ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${opSnippet2}</div>` : ''}
+        ${opAudio2}
+      </div>
+      <div class="pick ai-pick" style="opacity:0.5">
+        <div class="pick-label">AI</div>
+        <div class="pick-phone" style="color:#b2bec3">\u2014 не нашёл</div>
+        ${d.ai_reasoning ? `<div style="font-size:11px;color:#636e72;margin-top:4px">${escHtml(d.ai_reasoning)}</div>` : ''}
       </div>
     </div>`;
   }
