@@ -232,6 +232,8 @@ let SHOWN = 0;
 const PAGE = 50;
 let currentTab = "player";
 let currentGroup = 1;
+let focusMode = false;
+let focusIdx = 0;
 let ALL_GROUPS = {}; // {1: [dates], 2: [dates], ...} for cross-group analytics
 
 // dynamic color palette for operators (assigned by position in loaded data)
@@ -271,6 +273,11 @@ async function switchTab(tab) {
   document.getElementById("dateStats").style.display = tab === "player" ? "flex" : "none";
   document.getElementById("analyticsView").classList.toggle("visible", tab === "analytics");
   document.getElementById("aiReviewView").classList.toggle("visible", tab === "ai_review");
+  // hide focus nav when not in player tab
+  if (tab !== "player") {
+    document.getElementById("stickyNav").innerHTML = '';
+    focusMode = false;
+  }
   if (tab === "analytics") {
     document.getElementById("analyticsContent").innerHTML = '<div class="loading">Загрузка аналитики по всем группам...</div>';
     await loadAllGroupsData();
@@ -353,27 +360,20 @@ function applyFilters() {
   });
 
   SHOWN = 0;
-  disagreeIdx = -1;
   const listEl = document.getElementById("list");
   listEl.innerHTML = "";
-
-  // disagree/ai_only navigation bar — render into sticky wrapper outside scroll area
   const stickyNav = document.getElementById("stickyNav");
   const aiFilterVal2 = document.getElementById("aiFilter").value;
-  if ((aiFilterVal2 === 'disagree' || aiFilterVal2 === 'ai_only') && FILTERED.length > 0) {
-    stickyNav.innerHTML =
-      `<div class="disagree-nav">
-        <button onclick="scrollToDisagreeRow(-1)">&#9664; Пред</button>
-        <span class="nav-counter" id="navCounter">— из ${FILTERED.length}</span>
-        <span class="nav-reviewed" id="navReviewed"></span>
-        <button onclick="scrollToDisagreeRow(1)">След &#9654;</button>
-        <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
-      </div>`;
-    updateReviewCounter();
-  } else {
-    stickyNav.innerHTML = '';
+
+  // focus mode: show one item at a time for disagree/ai_only review
+  focusMode = (aiFilterVal2 === 'disagree' || aiFilterVal2 === 'ai_only') && FILTERED.length > 0;
+  if (focusMode) {
+    focusIdx = 0;
+    renderFocusMode();
+    return;
   }
 
+  stickyNav.innerHTML = '';
   document.getElementById("count").textContent = `Показано: 0 из ${FILTERED.length}`;
   showMore();
 }
@@ -568,8 +568,10 @@ function setVerdict(btn, idx, verdict) {
   // update counter
   updateReviewCounter();
 
-  // auto-advance to next disagree row after short delay
-  setTimeout(() => scrollToDisagreeRow(1), 400);
+  // auto-advance after short delay
+  if (focusMode) {
+    setTimeout(() => focusNav(1), 500);
+  }
 }
 
 function setComment(idx, comment) {
@@ -578,22 +580,6 @@ function setComment(idx, comment) {
   if (existing) {
     saveVerdict(currentGroup, date, idx, existing.verdict, comment);
   }
-}
-
-function updateReviewCounter() {
-  const el = document.getElementById('navReviewed');
-  if (!el) return;
-  const date = document.getElementById('dateFilter').value;
-  const reviewed = FILTERED.filter(d => getVerdict(currentGroup, date, d.idx)).length;
-  el.textContent = `${reviewed} из ${FILTERED.length} проверено`;
-
-  // also update row style for already-reviewed rows
-  document.querySelectorAll('.row-disagree, .row-ai-only').forEach(row => {
-    const idxText = row.querySelector('.row-num')?.textContent?.replace('#','');
-    if (idxText && getVerdict(currentGroup, date, parseInt(idxText))) {
-      row.classList.add('row-reviewed');
-    }
-  });
 }
 
 // Audio: API only supports HTTP; on HTTPS rewrite through /audio proxy
@@ -884,18 +870,92 @@ function exportVerdicts() {
   a.click();
 }
 
-// navigate disagree rows
-let disagreeIdx = -1;
-function scrollToDisagreeRow(dir) {
-  const rows = document.querySelectorAll('.row-disagree, .row-ai-only');
-  if (!rows.length) return;
-  const newIdx = disagreeIdx + dir;
-  if (newIdx < 0 || newIdx >= rows.length) return;
-  disagreeIdx = newIdx;
-  rows[disagreeIdx].scrollIntoView({ behavior:'smooth', block:'start' });
-  const counter = document.getElementById('navCounter');
-  if (counter) counter.textContent = `${disagreeIdx + 1} из ${rows.length}`;
+// ─── Focus review mode: one item at a time ───
+
+function renderFocusMode() {
+  const listEl = document.getElementById("list");
+  const stickyNav = document.getElementById("stickyNav");
+  const date = document.getElementById('dateFilter').value;
+
+  if (!FILTERED.length) {
+    stickyNav.innerHTML = '';
+    listEl.innerHTML = '<div class="empty">Нет записей для ревью</div>';
+    return;
+  }
+
+  if (focusIdx < 0) focusIdx = 0;
+  if (focusIdx >= FILTERED.length) focusIdx = FILTERED.length - 1;
+
+  // count reviewed
+  const reviewed = FILTERED.filter(d => getVerdict(currentGroup, date, d.idx)).length;
+  const d = FILTERED[focusIdx];
+  const isReviewed = !!getVerdict(currentGroup, date, d.idx);
+
+  // nav bar
+  stickyNav.innerHTML =
+    `<div class="disagree-nav">
+      <button onclick="focusNav(-1)" ${focusIdx === 0 ? 'disabled style="opacity:0.3;cursor:default"' : ''}>&#9664; Пред</button>
+      <span class="nav-counter" id="navCounter">${focusIdx + 1} из ${FILTERED.length}</span>
+      <span class="nav-reviewed" id="navReviewed">${reviewed} из ${FILTERED.length} проверено</span>
+      <button onclick="focusNav(1)" ${focusIdx >= FILTERED.length - 1 ? 'disabled style="opacity:0.3;cursor:default"' : ''}>След &#9654;</button>
+      <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
+    </div>`;
+
+  // render single row
+  listEl.innerHTML = renderRow(d, focusIdx);
+  document.getElementById("count").textContent = `${focusIdx + 1} из ${FILTERED.length}`;
+
+  // mark reviewed
+  if (isReviewed) {
+    const row = listEl.querySelector('.row');
+    if (row) row.classList.add('row-reviewed');
+  }
+
+  // expand all transcripts in focus mode (no need to click "показать всё")
+  listEl.querySelectorAll('.rec-text').forEach(el => {
+    el.style.maxHeight = 'none';
+    el.style.overflow = 'visible';
+  });
+  listEl.querySelectorAll('.expand-btn').forEach(btn => {
+    btn.textContent = 'свернуть';
+  });
+
+  // scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function focusNav(dir) {
+  const newIdx = focusIdx + dir;
+  if (newIdx < 0 || newIdx >= FILTERED.length) return;
+  focusIdx = newIdx;
+  // stop any playing audio
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.remove();
+    const oldBtn = document.querySelector('.audio-btn.playing');
+    if (oldBtn) { oldBtn.classList.remove('playing'); oldBtn.innerHTML = '&#9654;'; }
+    currentAudio = null;
+  }
+  renderFocusMode();
+  saveFilters();
+}
+
+function updateReviewCounter() {
+  if (focusMode) { renderFocusMode(); return; }
+  const el = document.getElementById('navReviewed');
+  if (!el) return;
+  const date = document.getElementById('dateFilter').value;
+  const reviewed = FILTERED.filter(d => getVerdict(currentGroup, date, d.idx)).length;
+  el.textContent = `${reviewed} из ${FILTERED.length} проверено`;
+}
+
+// keyboard navigation in focus mode
+document.addEventListener('keydown', e => {
+  if (!focusMode) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); focusNav(-1); }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); focusNav(1); }
+});
 
 function renderAiReview() {
   const c = document.getElementById("aiReviewContent");
