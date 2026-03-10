@@ -356,12 +356,16 @@ function toggleText(i, ri) {
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
 function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;") : ""; }
 
-// Audio: API only supports HTTP, so on HTTPS sites open in new tab
-function playAudio(btn, rawUrl) {
+// Audio: API only supports HTTP; on HTTPS rewrite through /audio proxy
+function getAudioUrl(rawUrl) {
   if (location.protocol === 'https:') {
-    window.open(rawUrl, '_blank');
-    return;
+    return rawUrl.replace('http://assist.intmarksol.com/api/', '/audio');
   }
+  return rawUrl;
+}
+
+function playAudio(btn, rawUrl) {
+  const url = getAudioUrl(rawUrl);
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -373,12 +377,12 @@ function playAudio(btn, rawUrl) {
   const audio = document.createElement('audio');
   audio.controls = true;
   audio.className = 'audio-inline';
-  audio.src = rawUrl;
+  audio.src = url;
   audio._btn = btn;
   btn.parentElement.appendChild(audio);
   audio.play().catch(() => {
     audio.remove();
-    window.open(rawUrl, '_blank');
+    window.open(url, '_blank');
   });
   btn.classList.add('playing');
   btn.innerHTML = '&#9632;';
