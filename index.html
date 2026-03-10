@@ -174,6 +174,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
   <div class="tabs">
     <button class="tab active" onclick="switchTab('player')">Записи</button>
     <button class="tab" onclick="switchTab('analytics')">Аналитика</button>
+    <button class="tab" onclick="switchTab('ai_review')">AI vs Оператор</button>
   </div>
   <div class="controls player-controls" id="playerControls">
     <select id="groupFilter" onchange="switchGroup(parseInt(this.value))">
@@ -212,6 +213,10 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 
 <div class="analytics" id="analyticsView">
   <div class="container" id="analyticsContent"></div>
+</div>
+
+<div class="analytics" id="aiReviewView">
+  <div class="container" id="aiReviewContent"></div>
 </div>
 
 
@@ -256,12 +261,13 @@ function switchGroup(num) {
 
 async function switchTab(tab) {
   currentTab = tab;
-  const tabIdx = {player:0, analytics:1};
+  const tabIdx = {player:0, analytics:1, ai_review:2};
   document.querySelectorAll(".tab").forEach((t,i) => t.classList.toggle("active", i === tabIdx[tab]));
   document.getElementById("playerView").classList.toggle("hidden", tab !== "player");
   document.getElementById("playerControls").style.display = tab === "player" ? "flex" : "none";
   document.getElementById("dateStats").style.display = tab === "player" ? "flex" : "none";
   document.getElementById("analyticsView").classList.toggle("visible", tab === "analytics");
+  document.getElementById("aiReviewView").classList.toggle("visible", tab === "ai_review");
   // hide focus nav when not in player tab
   if (tab !== "player") {
     document.getElementById("stickyNav").innerHTML = '';
@@ -270,7 +276,12 @@ async function switchTab(tab) {
   if (tab === "analytics") {
     document.getElementById("analyticsContent").innerHTML = '<div class="loading">Загрузка аналитики...</div>';
     await loadAllGroupsData();
-    renderCombinedAnalytics();
+    renderAnalytics();
+  }
+  if (tab === "ai_review") {
+    document.getElementById("aiReviewContent").innerHTML = '<div class="loading">Загрузка...</div>';
+    await loadAllGroupsData();
+    renderAiReview();
   }
 }
 
@@ -555,16 +566,11 @@ function setComment(idx, comment) {
   }
 }
 
-// Audio: API only supports HTTP; on HTTPS rewrite through /audio proxy
-function getAudioUrl(rawUrl) {
-  if (location.protocol === 'https:') {
-    return rawUrl.replace('http://assist.intmarksol.com/api/', '/audio');
-  }
-  return rawUrl;
-}
-
+// Audio playback with fallback chain:
+// 1. Try /audio proxy (works on Netlify)
+// 2. Try raw HTTP URL directly (works on HTTP sites)
+// 3. Open raw URL in new tab (always works)
 function playAudio(btn, rawUrl) {
-  const url = getAudioUrl(rawUrl);
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -573,25 +579,45 @@ function playAudio(btn, rawUrl) {
     if (currentAudio._btn === btn) { currentAudio = null; return; }
     currentAudio = null;
   }
-  const audio = document.createElement('audio');
-  audio.controls = true;
-  audio.className = 'audio-inline';
-  audio.src = url;
-  audio._btn = btn;
-  btn.parentElement.appendChild(audio);
-  audio.play().catch(() => {
-    audio.remove();
-    window.open(url, '_blank');
-  });
-  btn.classList.add('playing');
-  btn.innerHTML = '&#9632;';
-  currentAudio = audio;
-  audio.addEventListener('ended', () => {
-    btn.classList.remove('playing');
-    btn.innerHTML = '&#9654;';
-    audio.remove();
-    currentAudio = null;
-  });
+
+  const proxyUrl = location.protocol === 'https:'
+    ? rawUrl.replace('http://assist.intmarksol.com/api/', '/audio')
+    : rawUrl;
+
+  function tryPlay(url, fallbackUrl) {
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.className = 'audio-inline';
+    audio.src = url;
+    audio._btn = btn;
+    btn.parentElement.appendChild(audio);
+    btn.classList.add('playing');
+    btn.innerHTML = '&#9632;';
+    currentAudio = audio;
+
+    const cleanup = () => {
+      btn.classList.remove('playing');
+      btn.innerHTML = '&#9654;';
+      audio.remove();
+      currentAudio = null;
+    };
+
+    audio.addEventListener('ended', cleanup);
+
+    // if playback fails, try fallback or open in new tab
+    const onError = () => {
+      cleanup();
+      if (fallbackUrl && fallbackUrl !== url) {
+        tryPlay(fallbackUrl, null);
+      } else {
+        window.open(rawUrl, '_blank');
+      }
+    };
+    audio.addEventListener('error', onError);
+    audio.play().catch(onError);
+  }
+
+  tryPlay(proxyUrl, proxyUrl !== rawUrl ? rawUrl : null);
 }
 let currentAudio = null;
 
@@ -599,9 +625,9 @@ let currentAudio = null;
 
 function rcColor(v) { return v >= 90 ? '#00b894' : v >= 70 ? '#e17055' : '#d63031'; }
 
-// ─── Combined Analytics (AI review + operator recall) ───
+// ─── Analytics: Operator recall ───
 
-function renderCombinedAnalytics() {
+function renderAnalytics() {
   const c = document.getElementById("analyticsContent");
   const gNums = Object.keys(ALL_GROUPS).map(Number).sort();
   if (!gNums.length) { c.innerHTML = '<div class="empty">Нет данных</div>'; return; }
@@ -613,29 +639,17 @@ function renderCombinedAnalytics() {
   // aggregate by date
   const byDate = {};
   allDates.forEach(date => {
-    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0, uph:0,
-                ai_agree:0, ai_disagree:0, ai_only:0, ai_op_only:0, ai_processed:0 };
+    const a = { sites:0, matched:0, mismatched:0, op_empty:0, no_recs:0, uph:0 };
     gNums.forEach(g => {
       const d = ALL_GROUPS[g].find(x => x.date === date);
-      if (d) {
-        a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched;
-        a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; a.uph+=(d.unique_phones||0);
-        if (d.ai) {
-          a.ai_agree+=(d.ai.agree||0); a.ai_disagree+=(d.ai.disagree||0);
-          a.ai_only+=(d.ai.ai_only||0); a.ai_op_only+=(d.ai.op_only||0);
-          a.ai_processed+=(d.ai.processed||0);
-        }
-      }
+      if (d) { a.sites+=d.sites; a.matched+=d.matched; a.mismatched+=d.mismatched; a.op_empty+=d.op_empty; a.no_recs+=d.no_recs; a.uph+=(d.unique_phones||0); }
     });
     a.recall = (a.matched+a.mismatched) ? Math.round(a.matched/(a.matched+a.mismatched)*100) : 0;
-    const aiDec = a.ai_agree + a.ai_disagree;
-    a.ai_accuracy = aiDec ? Math.round(a.ai_agree/aiDec*100) : 0;
     byDate[date] = a;
   });
 
-  const aiDates = allDates.filter(date => byDate[date].ai_processed > 0);
-  const reportDate = aiDates.length ? aiDates[aiDates.length - 1] : allDates[allDates.length - 1];
-  const prevDate = aiDates.length >= 2 ? aiDates[aiDates.length - 2] : null;
+  const reportDate = allDates[allDates.length - 1];
+  const prevDate = allDates.length >= 2 ? allDates[allDates.length - 2] : null;
   const last = byDate[reportDate];
   const prev = prevDate ? byDate[prevDate] : null;
 
@@ -645,38 +659,161 @@ function renderCombinedAnalytics() {
     const ok = up === undefined ? d > 0 : (up ? d > 0 : d < 0);
     return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'}${Math.abs(d)}</div>`;
   }
-  function potColor(v) { return v >= 80 ? '#00b894' : v >= 60 ? '#e17055' : '#d63031'; }
 
-  // AI metrics
-  const totAcc = last.ai_accuracy;
-  const totPot = last.ai_processed ? Math.round((last.ai_agree + last.ai_only) / last.ai_processed * 100) : 0;
-  const prevAcc = prev?.ai_accuracy || 0;
-  const prevPot = prev?.ai_processed ? Math.round((prev.ai_agree + prev.ai_only) / prev.ai_processed * 100) : 0;
-
-  // ── Section 1: Summary card (AI-focused + key pipeline stats) ──
+  // summary card
   let html = `<div class="card"><h2>Сводка за ${dl[reportDate]}</h2>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat-box" style="border:2px solid #a29bfe"><div class="val" style="color:#a29bfe">${totAcc}%</div><div class="lbl">AI точность</div><div style="font-size:11px;color:#636e72">AI=ОП / (AI=ОП + AI\u2260ОП)</div>${dlt(totAcc, prev ? prevAcc : null, true)}</div>
-      <div class="stat-box" style="border:2px solid ${potColor(totPot)}"><div class="val" style="color:${potColor(totPot)}">${totPot}%</div><div class="lbl">Потенциал</div><div style="font-size:11px;color:#636e72">(AI=ОП + Только AI) / Всего</div>${dlt(totPot, prev ? prevPot : null, true)}</div>
       <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall операторов</div>${dlt(last.recall, prev?.recall, true)}</div>
       <div class="stat-box"><div class="val">${last.sites}</div><div class="lbl">Проверок</div>${dlt(last.sites, prev?.sites, true)}</div>
+      <div class="stat-box"><div class="val">${last.matched}</div><div class="lbl">Совпал</div></div>
+      <div class="stat-box red"><div class="val">${last.mismatched}</div><div class="lbl">Не совпал</div></div>
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#636e72;margin-top:8px">
-      <span style="color:#00b894;font-weight:600">AI=ОП: ${last.ai_agree}</span>
-      <span style="color:#d63031;font-weight:600">AI\u2260ОП: ${last.ai_disagree}</span>
-      <span style="color:#a29bfe;font-weight:600">Только AI: ${last.ai_only}</span>
       <span>Оп. пусто: ${last.op_empty}</span>
       <span>Нет записей: ${last.no_recs}</span>
       <span>Уник. номеров: ${last.uph}</span>
     </div>
   </div>`;
 
-  // ── Section 2: AI matrix (Group × Operator) ──
-  html += `<div class="card"><h2>AI vs Оператор — матрица</h2>
-    <p style="font-size:12px;color:#636e72;margin-bottom:12px">${dl[reportDate]}. Кликните на число для перехода к записям.</p>
-    <table class="tbl">
-    <tr><th>Группа</th><th>Оператор</th><th class="num">AI=ОП</th><th class="num">AI\u2260ОП</th><th class="num">Только AI</th><th class="num">Только ОП</th><th class="num">Точность</th><th class="num">Потенциал</th></tr>`;
+  // recall per operator per group
+  html += `<div class="card"><h2>Recall операторов по группам</h2>`;
+  gNums.forEach(g => {
+    const dates = ALL_GROUPS[g];
+    if (!dates.some(d => d.operators)) return;
+    const opN = [];
+    dates.forEach(d => { if (!d.operators) return; Object.keys(d.operators).forEach(n => { if (!opN.includes(n)) opN.push(n); }); });
 
+    html += `<h3 style="color:${GC[g]};margin:16px 0 8px">Группа ${g}</h3><table class="tbl">
+      <tr><th>Дата</th>${opN.map(n => `<th class="num">${n}</th>`).join('')}<th class="num">Группа</th></tr>`;
+    dates.forEach(d => {
+      html += `<tr><td>${d.label.split(' ')[0]}</td>`;
+      opN.forEach(n => {
+        const s = d.operators?.[n];
+        if (!s) { html += '<td class="num">\u2014</td>'; return; }
+        html += `<td class="num" style="color:${rcColor(s.recall)};font-weight:600">${s.recall}%</td>`;
+      });
+      html += `<td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td></tr>`;
+    });
+    html += `</table>`;
+  });
+  html += `</div>`;
+
+  // trend table
+  if (allDates.length > 1) {
+    html += `<div class="card"><h2>Тренд Recall по дням</h2><table class="tbl"><tr><th>Дата</th>`;
+    gNums.forEach(g => { html += `<th class="num" style="color:${GC[g]}">Гр.${g}</th>`; });
+    html += `<th class="num">Итого</th><th class="num">Проверок</th></tr>`;
+    allDates.forEach(date => {
+      const bd = byDate[date];
+      html += `<tr><td>${dl[date].split(' ')[0]}</td>`;
+      gNums.forEach(g => {
+        const d = ALL_GROUPS[g].find(x => x.date === date);
+        if (d) {
+          html += `<td class="num" style="font-weight:600;color:${rcColor(d.recall)}">${d.recall}%</td>`;
+        } else html += '<td class="num">\u2014</td>';
+      });
+      html += `<td class="num" style="font-weight:700;color:${rcColor(bd.recall)}">${bd.recall}%</td>`;
+      html += `<td class="num">${bd.sites}</td></tr>`;
+    });
+    html += `</table></div>`;
+  }
+
+  c.innerHTML = html;
+}
+
+// ─── AI Review: matrix, summary, review progress ───
+
+let aiReviewDate = null; // selected date for AI review
+
+function renderAiReview(selectedDate) {
+  const c = document.getElementById("aiReviewContent");
+  const gNums = Object.keys(ALL_GROUPS).map(Number).sort();
+  if (!gNums.length) { c.innerHTML = '<div class="empty">Нет данных</div>'; return; }
+
+  const GC = ['','#0984e3','#00b894','#e17055','#d63031'];
+  const allDates = [...new Set(gNums.flatMap(g => ALL_GROUPS[g].map(d => d.date)))].sort();
+  const dl = {}; gNums.forEach(g => ALL_GROUPS[g].forEach(d => { dl[d.date] = d.label; }));
+
+  const aiDates = allDates.filter(date => gNums.some(g => {
+    const d = ALL_GROUPS[g].find(x => x.date === date);
+    return d && d.ai && d.ai.processed > 0;
+  }));
+
+  if (!aiDates.length) {
+    c.innerHTML = '<div class="empty">Нет данных AI matching. Запустите ai_matching.py</div>';
+    return;
+  }
+
+  const reportDate = selectedDate && aiDates.includes(selectedDate) ? selectedDate : aiDates[aiDates.length - 1];
+  aiReviewDate = reportDate;
+  const prevDate = (() => { const idx = aiDates.indexOf(reportDate); return idx > 0 ? aiDates[idx - 1] : null; })();
+
+  function dlt(cur, prv, up) {
+    if (prv === null || prv === undefined) return '';
+    const d = cur - prv; if (d === 0) return '';
+    const ok = up === undefined ? d > 0 : (up ? d > 0 : d < 0);
+    return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'}${Math.abs(d)}</div>`;
+  }
+  function potColor(v) { return v >= 80 ? '#00b894' : v >= 60 ? '#e17055' : '#d63031'; }
+
+  // aggregate for report date
+  let totAgree=0, totDisagree=0, totAiOnly=0, totOpOnly=0, totProcessed=0;
+  let prevAgree=0, prevDisagree=0, prevAiOnly=0, prevProcessed=0;
+  gNums.forEach(g => {
+    const d = ALL_GROUPS[g].find(x => x.date === reportDate);
+    if (d?.ai) { totAgree+=d.ai.agree||0; totDisagree+=d.ai.disagree||0; totAiOnly+=d.ai.ai_only||0; totOpOnly+=d.ai.op_only||0; totProcessed+=d.ai.processed||0; }
+    if (prevDate) {
+      const p = ALL_GROUPS[g].find(x => x.date === prevDate);
+      if (p?.ai) { prevAgree+=p.ai.agree||0; prevDisagree+=p.ai.disagree||0; prevAiOnly+=p.ai.ai_only||0; prevProcessed+=p.ai.processed||0; }
+    }
+  });
+  const totDec = totAgree + totDisagree;
+  const totAcc = totDec ? Math.round(totAgree / totDec * 100) : 0;
+  const totPot = totProcessed ? Math.round((totAgree + totAiOnly) / totProcessed * 100) : 0;
+  const prevDec = prevAgree + prevDisagree;
+  const prevAcc = prevDec ? Math.round(prevAgree / prevDec * 100) : 0;
+  const prevPot = prevProcessed ? Math.round((prevAgree + prevAiOnly) / prevProcessed * 100) : 0;
+
+  // count reviewed verdicts from localStorage
+  let totalReviewed = 0;
+  const totalToReview = totDisagree + totAiOnly;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.match(new RegExp(`^review_\\d+_${reportDate}_`))) totalReviewed++;
+  }
+
+  // date selector
+  let html = `<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+    <label style="font-weight:600;font-size:14px">Дата:</label>
+    <select id="aiDateSelect" onchange="renderAiReview(this.value)" style="padding:8px 12px;border:1px solid #dfe6e9;border-radius:6px;font-size:13px">
+      ${aiDates.map(d => `<option value="${d}" ${d === reportDate ? 'selected' : ''}>${dl[d]}</option>`).join('')}
+    </select>
+  </div>`;
+
+  // summary card
+  html += `<div class="card"><h2>AI Matching — ${dl[reportDate]}</h2>
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-box" style="border:2px solid #a29bfe"><div class="val" style="color:#a29bfe">${totAcc}%</div><div class="lbl">Точность</div><div style="font-size:11px;color:#636e72">AI=ОП / (AI=ОП + AI≠ОП)</div>${dlt(totAcc, prevDate ? prevAcc : null, true)}</div>
+      <div class="stat-box" style="border:2px solid ${potColor(totPot)}"><div class="val" style="color:${potColor(totPot)}">${totPot}%</div><div class="lbl">Потенциал</div><div style="font-size:11px;color:#636e72">(AI=ОП + Только AI) / Всего</div>${dlt(totPot, prevDate ? prevPot : null, true)}</div>
+      <div class="stat-box"><div class="val">${totProcessed}</div><div class="lbl">Обработано</div></div>
+      <div class="stat-box" style="border:2px solid ${totalReviewed >= totalToReview ? '#00b894' : '#e17055'}"><div class="val" style="color:${totalReviewed >= totalToReview ? '#00b894' : '#e17055'}">${totalReviewed}/${totalToReview}</div><div class="lbl">Проверено</div><div style="font-size:11px;color:#636e72">вердиктов из расхожд.+только AI</div></div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#636e72;margin-top:8px">
+      <span style="color:#00b894;font-weight:600">AI=ОП: ${totAgree}</span>
+      <span style="color:#d63031;font-weight:600">AI≠ОП: ${totDisagree}</span>
+      <span style="color:#a29bfe;font-weight:600">Только AI: ${totAiOnly}</span>
+      <span style="color:#e17055">Только ОП: ${totOpOnly}</span>
+    </div>
+  </div>`;
+
+  // matrix
+  html += `<div class="card"><h2>Матрица по операторам</h2>
+    <p style="font-size:12px;color:#636e72;margin-bottom:12px">Кликните на число для перехода к записям.</p>
+    <table class="tbl">
+    <tr><th>Группа</th><th>Оператор</th><th class="num">AI=ОП</th><th class="num">AI≠ОП</th><th class="num">Только AI</th><th class="num">Только ОП</th><th class="num">Точность</th><th class="num">Потенциал</th></tr>`;
+
+  // per-group rows + group totals
+  let grandAgree=0, grandDisagree=0, grandAiOnly=0, grandOpOnly=0, grandProcessed=0;
   gNums.forEach(g => {
     const d = ALL_GROUPS[g].find(x => x.date === reportDate);
     if (!d || !d.ai_operators) return;
@@ -700,6 +837,7 @@ function renderCombinedAnalytics() {
     // group total
     const ga = d.ai;
     if (ga) {
+      grandAgree+=ga.agree; grandDisagree+=ga.disagree; grandAiOnly+=ga.ai_only||0; grandOpOnly+=ga.op_only||0; grandProcessed+=ga.processed||0;
       const gAcc = ga.accuracy, gPot = ga.processed ? Math.round((ga.agree + ga.ai_only) / ga.processed * 100) : 0;
       const gDec = ga.agree + ga.disagree, gBarW = gDec > 0 ? Math.round(ga.agree / gDec * 100) : 0;
       html += `<tr style="background:#f8f9fa;font-weight:600"><td colspan="2" style="color:${GC[g]}">Итого гр.${g}</td>
@@ -711,65 +849,55 @@ function renderCombinedAnalytics() {
         <td class="num" style="color:${potColor(gPot)}">${gPot}%<div class="mini-bar"><div class="mb-covered" style="width:${gPot}%"></div><div class="mb-uncovered" style="width:${100-gPot}%"></div></div></td></tr>`;
     }
   });
+
+  // grand total row
+  const gAcc = (grandAgree+grandDisagree) ? Math.round(grandAgree/(grandAgree+grandDisagree)*100) : 0;
+  const gPot = grandProcessed ? Math.round((grandAgree+grandAiOnly)/grandProcessed*100) : 0;
+  const gBarW = (grandAgree+grandDisagree) > 0 ? Math.round(grandAgree/(grandAgree+grandDisagree)*100) : 0;
+  html += `<tr style="background:#2d3436;color:#fff;font-weight:700"><td colspan="2">ИТОГО</td>
+    <td class="num">${grandAgree}</td><td class="num">${grandDisagree}</td>
+    <td class="num">${grandAiOnly}</td><td class="num">${grandOpOnly}</td>
+    <td class="num">${gAcc}%<div class="mini-bar"><div class="mb-agree" style="width:${gBarW}%"></div><div class="mb-disagree" style="width:${100-gBarW}%"></div></div></td>
+    <td class="num">${gPot}%<div class="mini-bar"><div class="mb-covered" style="width:${gPot}%"></div><div class="mb-uncovered" style="width:${100-gPot}%"></div></div></td></tr>`;
+
   html += `</table></div>`;
 
-  // ── Section 3: Trend table ──
+  // trend table
   if (aiDates.length > 1) {
     html += `<div class="card"><h2>Тренд по дням</h2><table class="tbl"><tr><th>Дата</th>`;
     gNums.forEach(g => { html += `<th class="num" style="color:${GC[g]}">Гр.${g}</th>`; });
-    html += `<th class="num">Точность</th><th class="num">Потенциал</th><th class="num">Recall</th></tr>`;
+    html += `<th class="num">Точность</th><th class="num">Потенциал</th></tr>`;
     aiDates.forEach(date => {
-      const bd = byDate[date];
-      html += `<tr><td>${dl[date].split(' ')[0]}</td>`;
+      const isActive = date === reportDate;
+      html += `<tr${isActive ? ' style="background:#f0e8ff"' : ''}>`;
+      html += `<td>${dl[date].split(' ')[0]}</td>`;
+      let dAgree=0, dDisagree=0, dAiOnly2=0, dProc=0;
       gNums.forEach(g => {
         const d = ALL_GROUPS[g].find(x => x.date === date);
         if (d?.ai?.processed > 0) {
           const a = d.ai.accuracy;
           html += `<td class="num" style="font-weight:600;color:${a >= 85 ? '#00b894' : a >= 70 ? '#e17055' : '#d63031'}">${a}%</td>`;
+          dAgree += d.ai.agree||0; dDisagree += d.ai.disagree||0;
+          dAiOnly2 += d.ai.ai_only||0; dProc += d.ai.processed||0;
         } else html += '<td class="num">\u2014</td>';
       });
-      const dAcc = bd.ai_accuracy;
-      const dPot = bd.ai_processed ? Math.round((bd.ai_agree + bd.ai_only) / bd.ai_processed * 100) : 0;
+      const dDec = dAgree + dDisagree;
+      const dAcc = dDec ? Math.round(dAgree/dDec*100) : 0;
+      const dPot = dProc ? Math.round((dAgree + dAiOnly2)/dProc*100) : 0;
       html += `<td class="num" style="font-weight:700;color:${dAcc >= 85 ? '#00b894' : dAcc >= 70 ? '#e17055' : '#d63031'}">${dAcc}%</td>`;
-      html += `<td class="num" style="font-weight:700;color:${potColor(dPot)}">${dPot}%</td>`;
-      html += `<td class="num" style="color:${rcColor(bd.recall)}">${bd.recall}%</td></tr>`;
+      html += `<td class="num" style="font-weight:700;color:${potColor(dPot)}">${dPot}%</td></tr>`;
     });
     html += `</table></div>`;
   }
 
-  // ── Section 4: Operator recall per group (compact) ──
-  html += `<div class="card"><h2>Recall операторов по группам</h2>`;
-  gNums.forEach(g => {
-    const dates = ALL_GROUPS[g];
-    if (!dates.some(d => d.operators)) return;
-    const opN = [];
-    dates.forEach(d => { if (!d.operators) return; Object.keys(d.operators).forEach(n => { if (!opN.includes(n)) opN.push(n); }); });
-
-    html += `<h3 style="color:${GC[g]};margin:16px 0 8px">Группа ${g}</h3><table class="tbl">
-      <tr><th>Дата</th>${opN.map(n => `<th class="num">${n}</th>`).join('')}<th class="num">Группа</th></tr>`;
-    const opA = {}; opN.forEach(n => { opA[n] = {m:0,mis:0}; });
-    dates.forEach(d => {
-      html += `<tr><td>${d.label.split(' ')[0]}</td>`;
-      opN.forEach(n => {
-        const s = d.operators?.[n];
-        if (!s) { html += '<td class="num">\u2014</td>'; return; }
-        opA[n].m += s.matched; opA[n].mis += s.mismatched;
-        html += `<td class="num" style="color:${rcColor(s.recall)};font-weight:600">${s.recall}%</td>`;
-      });
-      html += `<td class="num" style="font-weight:700;color:${rcColor(d.recall)}">${d.recall}%</td></tr>`;
-    });
-    html += `</table>`;
-  });
-  html += `</div>`;
-
-  // ── Methodology ──
+  // methodology
   html += `<div class="card"><h2>Как читать</h2>
     <div style="font-size:13px;line-height:1.7;color:#636e72">
-      <p><b>AI точность</b> = AI=ОП / (AI=ОП + AI\u2260ОП) — совпадение AI с оператором</p>
+      <p><b>Точность</b> = AI=ОП / (AI=ОП + AI≠ОП) — когда оба нашли номер, как часто совпадают</p>
       <p><b>Потенциал</b> = (AI=ОП + Только AI) / Обработано — долю которую AI покроет сам</p>
-      <p><b>Recall</b> = Совпал / (Совпал + Не совпал) — нашёл ли оператор правильную запись</p>
-      <p><b>AI=ОП</b> — AI и оператор выбрали одну запись. <b>AI\u2260ОП</b> — выбрали разные</p>
+      <p><b>AI=ОП</b> — AI и оператор выбрали одну запись. <b>AI≠ОП</b> — выбрали разные</p>
       <p><b>Только AI</b> — оператор пусто, AI нашёл (потенциал автоматизации)</p>
+      <p><b>Проверено</b> — сколько вердиктов выставлено из общего числа расхождений + только AI</p>
     </div></div>`;
 
   c.innerHTML = html;
@@ -878,10 +1006,10 @@ function renderFocusMode() {
   // nav bar — always same layout: [Пред] [counter] [reviewed?] [След] [export?]
   stickyNav.innerHTML =
     `<div class="disagree-nav">
-      <button onclick="focusNav(-1)" ${focusIdx === 0 ? 'disabled' : ''}>&#9664; Пред</button>
+      <button onclick="focusNav(-1)">&#9664; Пред</button>
       <span class="nav-counter">${focusIdx + 1} из ${FILTERED.length}</span>
       ${reviewHtml}
-      <button onclick="focusNav(1)" ${focusIdx >= FILTERED.length - 1 ? 'disabled' : ''}>След &#9654;</button>
+      <button onclick="focusNav(1)">След &#9654;</button>
     </div>`;
 
   // render single row
@@ -908,9 +1036,10 @@ function renderFocusMode() {
 }
 
 function focusNav(dir) {
-  const newIdx = focusIdx + dir;
-  if (newIdx < 0 || newIdx >= FILTERED.length) return;
-  focusIdx = newIdx;
+  if (!FILTERED.length) return;
+  focusIdx += dir;
+  if (focusIdx >= FILTERED.length) focusIdx = 0;
+  if (focusIdx < 0) focusIdx = FILTERED.length - 1;
   // stop any playing audio
   if (currentAudio) {
     currentAudio.pause();
