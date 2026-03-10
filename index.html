@@ -576,10 +576,8 @@ function showMore() {
 function toggleText(btn) {
   const el = btn.previousElementSibling;
   if (!el) return;
-  const isExpanded = el.style.maxHeight === 'none';
-  el.style.maxHeight = isExpanded ? '' : 'none';
-  el.style.overflow = isExpanded ? '' : 'visible';
-  btn.textContent = isExpanded ? 'показать всё' : 'свернуть';
+  const isExpanded = el.classList.toggle('expanded');
+  btn.textContent = isExpanded ? 'свернуть' : 'показать всё';
 }
 
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
