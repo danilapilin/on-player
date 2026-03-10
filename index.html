@@ -1099,14 +1099,7 @@ function renderFocusMode() {
     if (row) row.classList.add('row-reviewed');
   }
 
-  // expand all transcripts
-  listEl.querySelectorAll('.rec-text').forEach(el => {
-    el.style.maxHeight = 'none';
-    el.style.overflow = 'visible';
-  });
-  listEl.querySelectorAll('.expand-btn').forEach(btn => {
-    btn.textContent = 'свернуть';
-  });
+  // keep transcripts collapsed by default — user can expand with "показать всё"
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
