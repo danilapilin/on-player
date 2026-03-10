@@ -566,11 +566,16 @@ function setComment(idx, comment) {
   }
 }
 
-// Audio playback with fallback chain:
-// 1. Try /audio proxy (works on Netlify)
-// 2. Try raw HTTP URL directly (works on HTTP sites)
-// 3. Open raw URL in new tab (always works)
+// Audio playback:
+// HTTPS + HTTP audio = mixed content blocked → open in new tab
+// HTTP site or same-protocol → inline playback
 function playAudio(btn, rawUrl) {
+  // HTTPS site can't play HTTP audio inline — open in new tab
+  if (location.protocol === 'https:' && rawUrl.startsWith('http:')) {
+    window.open(rawUrl, '_blank');
+    return;
+  }
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.remove();
@@ -580,44 +585,25 @@ function playAudio(btn, rawUrl) {
     currentAudio = null;
   }
 
-  const proxyUrl = location.protocol === 'https:'
-    ? rawUrl.replace('http://assist.intmarksol.com/api/', '/audio')
-    : rawUrl;
+  const audio = document.createElement('audio');
+  audio.controls = true;
+  audio.className = 'audio-inline';
+  audio.src = rawUrl;
+  audio._btn = btn;
+  btn.parentElement.appendChild(audio);
+  btn.classList.add('playing');
+  btn.innerHTML = '&#9632;';
+  currentAudio = audio;
 
-  function tryPlay(url, fallbackUrl) {
-    const audio = document.createElement('audio');
-    audio.controls = true;
-    audio.className = 'audio-inline';
-    audio.src = url;
-    audio._btn = btn;
-    btn.parentElement.appendChild(audio);
-    btn.classList.add('playing');
-    btn.innerHTML = '&#9632;';
-    currentAudio = audio;
-
-    const cleanup = () => {
-      btn.classList.remove('playing');
-      btn.innerHTML = '&#9654;';
-      audio.remove();
-      currentAudio = null;
-    };
-
-    audio.addEventListener('ended', cleanup);
-
-    // if playback fails, try fallback or open in new tab
-    const onError = () => {
-      cleanup();
-      if (fallbackUrl && fallbackUrl !== url) {
-        tryPlay(fallbackUrl, null);
-      } else {
-        window.open(rawUrl, '_blank');
-      }
-    };
-    audio.addEventListener('error', onError);
-    audio.play().catch(onError);
-  }
-
-  tryPlay(proxyUrl, proxyUrl !== rawUrl ? rawUrl : null);
+  const cleanup = () => {
+    btn.classList.remove('playing');
+    btn.innerHTML = '&#9654;';
+    audio.remove();
+    currentAudio = null;
+  };
+  audio.addEventListener('ended', cleanup);
+  audio.addEventListener('error', () => { cleanup(); window.open(rawUrl, '_blank'); });
+  audio.play().catch(() => { cleanup(); window.open(rawUrl, '_blank'); });
 }
 let currentAudio = null;
 
@@ -627,7 +613,9 @@ function rcColor(v) { return v >= 90 ? '#00b894' : v >= 70 ? '#e17055' : '#d6303
 
 // ─── Analytics: Operator recall ───
 
-function renderAnalytics() {
+let analyticsDate = null; // selected date for analytics
+
+function renderAnalytics(selectedDate) {
   const c = document.getElementById("analyticsContent");
   const gNums = Object.keys(ALL_GROUPS).map(Number).sort();
   if (!gNums.length) { c.innerHTML = '<div class="empty">Нет данных</div>'; return; }
@@ -648,8 +636,18 @@ function renderAnalytics() {
     byDate[date] = a;
   });
 
-  const reportDate = allDates[allDates.length - 1];
-  const prevDate = allDates.length >= 2 ? allDates[allDates.length - 2] : null;
+  // default: use selected date, or previous-to-last (yesterday), or last if only one
+  let reportDate;
+  if (selectedDate && allDates.includes(selectedDate)) {
+    reportDate = selectedDate;
+  } else if (allDates.length >= 2) {
+    reportDate = allDates[allDates.length - 2];
+  } else {
+    reportDate = allDates[allDates.length - 1];
+  }
+  analyticsDate = reportDate;
+  const prevIdx = allDates.indexOf(reportDate);
+  const prevDate = prevIdx > 0 ? allDates[prevIdx - 1] : null;
   const last = byDate[reportDate];
   const prev = prevDate ? byDate[prevDate] : null;
 
@@ -660,8 +658,16 @@ function renderAnalytics() {
     return `<div style="font-size:12px;margin-top:2px;color:${ok?'#00b894':'#d63031'}">${d>0?'↑':'↓'}${Math.abs(d)}</div>`;
   }
 
+  // date selector
+  let html = `<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+    <label style="font-weight:600;font-size:14px">Дата:</label>
+    <select onchange="renderAnalytics(this.value)" style="padding:8px 12px;border:1px solid #dfe6e9;border-radius:6px;font-size:13px">
+      ${allDates.map(d => `<option value="${d}" ${d === reportDate ? 'selected' : ''}>${dl[d]}</option>`).join('')}
+    </select>
+  </div>`;
+
   // summary card
-  let html = `<div class="card"><h2>Сводка за ${dl[reportDate]}</h2>
+  html += `<div class="card"><h2>Сводка за ${dl[reportDate]}</h2>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="stat-box green"><div class="val">${last.recall}%</div><div class="lbl">Recall операторов</div>${dlt(last.recall, prev?.recall, true)}</div>
       <div class="stat-box"><div class="val">${last.sites}</div><div class="lbl">Проверок</div>${dlt(last.sites, prev?.sites, true)}</div>
@@ -744,7 +750,15 @@ function renderAiReview(selectedDate) {
     return;
   }
 
-  const reportDate = selectedDate && aiDates.includes(selectedDate) ? selectedDate : aiDates[aiDates.length - 1];
+  // default: selected date, or previous-to-last (yesterday), or last if only one
+  let reportDate;
+  if (selectedDate && aiDates.includes(selectedDate)) {
+    reportDate = selectedDate;
+  } else if (aiDates.length >= 2) {
+    reportDate = aiDates[aiDates.length - 2];
+  } else {
+    reportDate = aiDates[aiDates.length - 1];
+  }
   aiReviewDate = reportDate;
   const prevDate = (() => { const idx = aiDates.indexOf(reportDate); return idx > 0 ? aiDates[idx - 1] : null; })();
 
