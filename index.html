@@ -133,7 +133,8 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 .verdict-btn:hover { border-color:#b2bec3; }
 .verdict-btn.active-ai { border-color:#a29bfe; background:#f0e8ff; color:#a29bfe; }
 .verdict-btn.active-op { border-color:#00b894; background:#e8f8e8; color:#00b894; }
-.verdict-btn.active-both { border-color:#e17055; background:#fff0e8; color:#e17055; }
+.verdict-btn.active-both-right { border-color:#0984e3; background:#e8f0ff; color:#0984e3; }
+.verdict-btn.active-both-wrong { border-color:#e17055; background:#fff0e8; color:#e17055; }
 .verdict-comment { flex:1; min-width:200px; padding:6px 10px; border:1px solid #dfe6e9; border-radius:8px;
   font-size:12px; outline:none; }
 .verdict-comment:focus { border-color:#a29bfe; }
@@ -143,13 +144,18 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#f5f6fa; c
 /* Disagree navigation bar */
 .disagree-nav { display:flex; gap:12px; align-items:center; justify-content:center;
   padding:10px 16px; background:#fff; border-radius:10px; margin-bottom:12px;
-  box-shadow:0 1px 4px rgba(0,0,0,0.06); position:sticky; top:190px; z-index:5; }
+  box-shadow:0 1px 4px rgba(0,0,0,0.06); }
 .disagree-nav button { padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600;
   cursor:pointer; border:1px solid #dfe6e9; background:#fff; color:#2d3436; }
 .disagree-nav button:hover { background:#f0f7ff; border-color:#0984e3; }
 .disagree-nav .nav-counter { font-size:13px; font-weight:600; color:#636e72; }
+.disagree-nav .nav-reviewed { font-size:12px; color:#00b894; }
 .disagree-nav .export-btn { background:#a29bfe; color:#fff; border-color:#a29bfe; margin-left:auto; }
 .disagree-nav .export-btn:hover { background:#8c7ae6; }
+
+/* Reviewed row visual state */
+.row-reviewed { opacity:0.6; }
+.row-reviewed::after { content:''; display:none; }
 
 /* Mini bar in matrix */
 .mini-bar { display:inline-flex; width:60px; height:8px; border-radius:4px; overflow:hidden; vertical-align:middle; margin-left:6px; }
@@ -245,7 +251,7 @@ function switchGroup(num) {
   currentGroup = num;
   document.querySelectorAll(".group-tab").forEach(t =>
     t.classList.toggle("active", parseInt(t.dataset.group) === num));
-  return loadGroup();
+  return loadGroup().then(() => saveFilters());
 }
 
 async function switchTab(tab) {
@@ -346,15 +352,15 @@ function applyFilters() {
   // disagree navigation bar when filtering disagree cases
   const aiFilterVal2 = document.getElementById("aiFilter").value;
   if (aiFilterVal2 === 'disagree' && FILTERED.length > 0) {
-    const reviewed = FILTERED.filter(d => getVerdict(currentGroup, document.getElementById('dateFilter').value, d.idx)).length;
     listEl.insertAdjacentHTML("beforeend",
       `<div class="disagree-nav">
         <button onclick="scrollToDisagreeRow(-1)">&#9664; Пред</button>
-        <span class="nav-counter" id="navCounter">0 из ${FILTERED.length}</span>
-        <span style="font-size:12px;color:#00b894">${reviewed} проверено</span>
+        <span class="nav-counter" id="navCounter">— из ${FILTERED.length}</span>
+        <span class="nav-reviewed" id="navReviewed"></span>
         <button onclick="scrollToDisagreeRow(1)">След &#9654;</button>
         <button class="export-btn" onclick="exportVerdicts()">Экспорт CSV</button>
       </div>`);
+    updateReviewCounter();
   }
 
   document.getElementById("count").textContent = `Показано: 0 из ${FILTERED.length}`;
@@ -379,8 +385,8 @@ function renderRow(d, globalIdx) {
         <span class="rec-callerid">${r.callerid}</span>
         <span class="rec-conf">&nbsp;&middot;&nbsp;${r.conf}</span>
         ${tags}
-        <div class="rec-text" id="txt-${globalIdx}-${ri}">${escHtml(r.transcript)}</div>
-        ${r.transcript.length > 120 ? `<button class="expand-btn" onclick="toggleText(${globalIdx},${ri})">показать всё</button>` : ""}
+        <div class="rec-text">${escHtml(r.transcript)}</div>
+        ${r.transcript.length > 120 ? '<button class="expand-btn" onclick="toggleText(this)">показать всё</button>' : ""}
       </div>
       ${r.audio ? `<button class="audio-btn" onclick="playAudio(this,'${escAttr(r.audio)}')">&#9654;</button>` : ""}
     </div>`;
@@ -403,7 +409,8 @@ function renderRow(d, globalIdx) {
     const v = getVerdict(currentGroup, document.getElementById('dateFilter').value, d.idx);
     const vAi = v?.verdict === 'ai' ? ' active-ai' : '';
     const vOp = v?.verdict === 'op' ? ' active-op' : '';
-    const vBoth = v?.verdict === 'both_wrong' ? ' active-both' : '';
+    const vBothRight = v?.verdict === 'both_right' ? ' active-both-right' : '';
+    const vBothWrong = v?.verdict === 'both_wrong' ? ' active-both-wrong' : '';
     const vComment = v?.comment || '';
 
     compareHtml = `<div class="disagree-compare">
@@ -424,7 +431,8 @@ function renderRow(d, globalIdx) {
     <div class="verdict-bar" data-idx="${d.idx}">
       <button class="verdict-btn${vAi}" onclick="setVerdict(this,${d.idx},'ai')">AI прав</button>
       <button class="verdict-btn${vOp}" onclick="setVerdict(this,${d.idx},'op')">ОП прав</button>
-      <button class="verdict-btn${vBoth}" onclick="setVerdict(this,${d.idx},'both_wrong')">Оба неверны</button>
+      <button class="verdict-btn${vBothRight}" onclick="setVerdict(this,${d.idx},'both_right')">Оба верны</button>
+      <button class="verdict-btn${vBothWrong}" onclick="setVerdict(this,${d.idx},'both_wrong')">Оба неверны</button>
       <input class="verdict-comment" placeholder="Комментарий..." value="${escAttr(vComment)}" onchange="setComment(${d.idx}, this.value)">
       <span class="verdict-saved" id="saved-${d.idx}">Сохранено</span>
     </div>`;
@@ -479,9 +487,13 @@ function showMore() {
   }
 }
 
-function toggleText(i, ri) {
-  const el = document.getElementById(`txt-${i}-${ri}`);
-  if (el) el.classList.toggle("expanded");
+function toggleText(btn) {
+  const el = btn.previousElementSibling;
+  if (!el) return;
+  const isExpanded = el.style.maxHeight === 'none';
+  el.style.maxHeight = isExpanded ? '' : 'none';
+  el.style.overflow = isExpanded ? '' : 'visible';
+  btn.textContent = isExpanded ? 'показать всё' : 'свернуть';
 }
 
 function escHtml(s) { return s ? s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""; }
@@ -489,6 +501,7 @@ function escAttr(s) { return s ? s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").
 
 function setVerdict(btn, idx, verdict) {
   const bar = btn.closest('.verdict-bar');
+  const row = bar.closest('.row');
   const date = document.getElementById('dateFilter').value;
   const existing = getVerdict(currentGroup, date, idx);
   const comment = bar.querySelector('.verdict-comment').value;
@@ -497,13 +510,25 @@ function setVerdict(btn, idx, verdict) {
   if (existing?.verdict === verdict) {
     localStorage.removeItem(`review_${currentGroup}_${date}_${idx}`);
     bar.querySelectorAll('.verdict-btn').forEach(b => b.className = 'verdict-btn');
+    if (row) row.classList.remove('row-reviewed');
+    updateReviewCounter();
     return;
   }
 
-  // set active
+  // set active button style
   bar.querySelectorAll('.verdict-btn').forEach(b => b.className = 'verdict-btn');
-  btn.classList.add(verdict === 'ai' ? 'active-ai' : verdict === 'op' ? 'active-op' : 'active-both');
+  const cls = {ai:'active-ai', op:'active-op', both_right:'active-both-right', both_wrong:'active-both-wrong'};
+  btn.classList.add(cls[verdict] || 'active-both-wrong');
   saveVerdict(currentGroup, date, idx, verdict, comment);
+
+  // dim the row to indicate it's reviewed
+  if (row) row.classList.add('row-reviewed');
+
+  // update counter
+  updateReviewCounter();
+
+  // auto-advance to next disagree row after short delay
+  setTimeout(() => scrollToDisagreeRow(1), 400);
 }
 
 function setComment(idx, comment) {
@@ -512,6 +537,22 @@ function setComment(idx, comment) {
   if (existing) {
     saveVerdict(currentGroup, date, idx, existing.verdict, comment);
   }
+}
+
+function updateReviewCounter() {
+  const el = document.getElementById('navReviewed');
+  if (!el) return;
+  const date = document.getElementById('dateFilter').value;
+  const reviewed = FILTERED.filter(d => getVerdict(currentGroup, date, d.idx)).length;
+  el.textContent = `${reviewed} из ${FILTERED.length} проверено`;
+
+  // also update row opacity for already-reviewed rows
+  document.querySelectorAll('.row-disagree').forEach(row => {
+    const idxText = row.querySelector('.row-num')?.textContent?.replace('#','');
+    if (idxText && getVerdict(currentGroup, date, parseInt(idxText))) {
+      row.classList.add('row-reviewed');
+    }
+  });
 }
 
 // Audio: API only supports HTTP; on HTTPS rewrite through /audio proxy
@@ -752,6 +793,7 @@ async function goToPlayer(group, date, operator, aiFilter) {
   updateStatusCounts();
   applyFilters();
   switchTab("player");
+  saveFilters();
 }
 
 // localStorage helpers for operator verdicts
@@ -896,12 +938,9 @@ function renderAiReview() {
       const decided = s.agree + s.disagree;
       const barW = decided > 0 ? Math.round(s.agree / decided * 100) : 0;
       const grpLabel = i === 0 ? `<td rowspan="${ops.length}" style="font-weight:600;color:${GC[g]}">Группа ${g}</td>` : '';
-      const reviewed = countReviewed(g, reportDate, op);
-      const reviewTag = reviewed > 0 ? ` <span style="font-size:10px;color:#00b894">(${reviewed})</span>` : '';
-
       html += `<tr>${grpLabel}<td>${op}<div style="font-size:11px;color:#b2bec3">${s.processed} обработано</div></td>
         <td class="num clickable" style="color:#00b894;font-weight:600" onclick="goToPlayer(${g},'${reportDate}','${op}','agree')">${s.agree}</td>
-        <td class="num clickable" style="color:#d63031;font-weight:600" onclick="goToPlayer(${g},'${reportDate}','${op}','disagree')">${s.disagree}${reviewTag}</td>
+        <td class="num clickable" style="color:#d63031;font-weight:600" onclick="goToPlayer(${g},'${reportDate}','${op}','disagree')">${s.disagree}</td>
         <td class="num clickable" style="color:#a29bfe" onclick="goToPlayer(${g},'${reportDate}','${op}','ai_only')">${s.ai_only}</td>
         <td class="num clickable" style="color:#e17055" onclick="goToPlayer(${g},'${reportDate}','${op}','op_only')">${s.op_only}</td>
         <td class="num" style="font-weight:700;color:${accColor}">${acc}%<div class="mini-bar"><div class="mb-agree" style="width:${barW}%"></div><div class="mb-disagree" style="width:${100-barW}%"></div></div></td>
@@ -1029,14 +1068,63 @@ async function loadDate(dateIso) {
   }
 }
 
-document.getElementById("search").addEventListener("input", applyFilters);
-document.getElementById("filter").addEventListener("change", applyFilters);
-document.getElementById("aiFilter").addEventListener("change", applyFilters);
-document.getElementById("opFilter").addEventListener("change", () => { updateStatusCounts(); applyFilters(); });
-document.getElementById("dateFilter").addEventListener("change", (e) => loadDate(e.target.value));
+// save filter state to localStorage on any change
+function saveFilters() {
+  const state = {
+    group: currentGroup,
+    date: document.getElementById('dateFilter').value,
+    op: document.getElementById('opFilter').value,
+    filter: document.getElementById('filter').value,
+    ai: document.getElementById('aiFilter').value,
+    tab: currentTab,
+  };
+  localStorage.setItem('on_player_filters', JSON.stringify(state));
+}
 
-// Init
-loadGroup();
+function getSavedFilters() {
+  try { return JSON.parse(localStorage.getItem('on_player_filters')); } catch { return null; }
+}
+
+document.getElementById("search").addEventListener("input", applyFilters);
+document.getElementById("filter").addEventListener("change", () => { applyFilters(); saveFilters(); });
+document.getElementById("aiFilter").addEventListener("change", () => { applyFilters(); saveFilters(); });
+document.getElementById("opFilter").addEventListener("change", () => { updateStatusCounts(); applyFilters(); saveFilters(); });
+document.getElementById("dateFilter").addEventListener("change", (e) => { loadDate(e.target.value).then(saveFilters); });
+
+// Init — restore saved filters or load defaults
+async function init() {
+  const saved = getSavedFilters();
+  if (saved) {
+    currentGroup = saved.group || 1;
+    document.querySelectorAll(".group-tab").forEach(t =>
+      t.classList.toggle("active", parseInt(t.dataset.group) === currentGroup));
+    await loadGroup();
+
+    // restore date if available
+    if (saved.date) {
+      const sel = document.getElementById('dateFilter');
+      if ([...sel.options].some(o => o.value === saved.date)) {
+        sel.value = saved.date;
+        await loadDate(saved.date);
+      }
+    }
+
+    // restore filters
+    if (saved.op) document.getElementById('opFilter').value = saved.op;
+    if (saved.filter) document.getElementById('filter').value = saved.filter;
+    if (saved.ai) document.getElementById('aiFilter').value = saved.ai;
+    updateStatusCounts();
+    applyFilters();
+
+    // restore tab
+    if (saved.tab && saved.tab !== 'player') {
+      switchTab(saved.tab);
+    }
+  } else {
+    loadGroup();
+  }
+}
+init();
 </script>
 </body>
 </html>
