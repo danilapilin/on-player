@@ -59,7 +59,19 @@ SYSTEM_PROMPT = (
 
 
 def get_oauth_token():
-    """Достаёт OAuth токен из macOS keychain (Claude Code credentials)."""
+    """Достаёт OAuth access token: из env (CI) или macOS keychain (локально)."""
+
+    # 1. CI: refresh token в env → обменять на access token
+    refresh_token = os.environ.get("CLAUDE_REFRESH_TOKEN")
+    if refresh_token:
+        return _refresh_oauth_token(refresh_token)
+
+    # 2. CI: готовый access token в env
+    access_token = os.environ.get("CLAUDE_ACCESS_TOKEN")
+    if access_token:
+        return access_token
+
+    # 3. Локально: macOS keychain
     try:
         result = subprocess.run(
             ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
@@ -70,6 +82,36 @@ def get_oauth_token():
         data = json.loads(result.stdout.strip())
         return data.get("claudeAiOauth", {}).get("accessToken")
     except Exception:
+        return None
+
+
+OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+
+
+def _refresh_oauth_token(refresh_token):
+    """Обменять refresh token на свежий access token через Anthropic OAuth."""
+    import httpx
+
+    try:
+        resp = httpx.post(
+            "https://console.anthropic.com/v1/oauth/token",
+            json={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": OAUTH_CLIENT_ID,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        token = data.get("access_token")
+        if token:
+            log.info("OAuth token refreshed successfully")
+            return token
+        log.error("No access_token in refresh response")
+        return None
+    except Exception as e:
+        log.error("OAuth refresh failed: %s", e)
         return None
 
 
