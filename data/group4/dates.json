@@ -45,11 +45,11 @@
     "label": "03.03",
     "sites": 1676,
     "matched": 549,
-    "mismatched": 6,
-    "op_empty": 1035,
+    "mismatched": 7,
+    "op_empty": 1034,
     "no_recs": 86,
     "recall": 99,
-    "unique_phones": 277,
+    "unique_phones": 278,
     "operators": {
       "Мария": {
         "matched": 128,
@@ -60,10 +60,10 @@
       },
       "Марина": {
         "matched": 122,
-        "mismatched": 0,
+        "mismatched": 1,
         "total": 419,
-        "recall": 100,
-        "unique_phones": 122
+        "recall": 99,
+        "unique_phones": 123
       },
       "Алина": {
         "matched": 162,
@@ -76,8 +76,8 @@
         "matched": 137,
         "mismatched": 3,
         "total": 419,
-        "recall": 98,
-        "unique_phones": 137
+        "recall": 97,
+        "unique_phones": 138
       }
     }
   },
@@ -85,82 +85,40 @@
     "date": "2026-03-04",
     "label": "04.03",
     "sites": 1712,
-    "matched": 451,
-    "mismatched": 19,
-    "op_empty": 1106,
+    "matched": 464,
+    "mismatched": 35,
+    "op_empty": 1077,
     "no_recs": 136,
-    "recall": 96,
-    "unique_phones": 262,
+    "recall": 93,
+    "unique_phones": 282,
     "operators": {
       "Мария": {
-        "matched": 88,
-        "mismatched": 6,
+        "matched": 92,
+        "mismatched": 12,
         "total": 428,
-        "recall": 94,
-        "unique_phones": 79
+        "recall": 88,
+        "unique_phones": 88
       },
       "Марина": {
-        "matched": 93,
-        "mismatched": 10,
+        "matched": 102,
+        "mismatched": 16,
         "total": 428,
-        "recall": 90,
-        "unique_phones": 84
+        "recall": 85,
+        "unique_phones": 101
       },
       "Алина": {
         "matched": 144,
-        "mismatched": 3,
+        "mismatched": 4,
         "total": 428,
-        "recall": 98,
-        "unique_phones": 124
+        "recall": 97,
+        "unique_phones": 125
       },
       "Светлана": {
         "matched": 126,
-        "mismatched": 0,
+        "mismatched": 3,
         "total": 428,
-        "recall": 100,
-        "unique_phones": 111
-      }
-    },
-    "ai": {
-      "processed": 993,
-      "agree": 234,
-      "disagree": 144,
-      "ai_only": 523,
-      "op_only": 92,
-      "accuracy": 62
-    },
-    "ai_operators": {
-      "Мария": {
-        "processed": 201,
-        "agree": 41,
-        "disagree": 29,
-        "ai_only": 107,
-        "op_only": 24,
-        "accuracy": 59
-      },
-      "Марина": {
-        "processed": 240,
-        "agree": 54,
-        "disagree": 28,
-        "ai_only": 137,
-        "op_only": 21,
-        "accuracy": 66
-      },
-      "Алина": {
-        "processed": 275,
-        "agree": 77,
-        "disagree": 48,
-        "ai_only": 128,
-        "op_only": 22,
-        "accuracy": 62
-      },
-      "Светлана": {
-        "processed": 277,
-        "agree": 62,
-        "disagree": 39,
-        "ai_only": 151,
-        "op_only": 25,
-        "accuracy": 61
+        "recall": 98,
+        "unique_phones": 114
       }
     }
   },
@@ -168,82 +126,40 @@
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1716,
-    "matched": 486,
-    "mismatched": 8,
-    "op_empty": 1026,
+    "matched": 498,
+    "mismatched": 17,
+    "op_empty": 1005,
     "no_recs": 196,
-    "recall": 98,
-    "unique_phones": 286,
+    "recall": 97,
+    "unique_phones": 301,
     "operators": {
       "Мария": {
-        "matched": 114,
-        "mismatched": 2,
+        "matched": 120,
+        "mismatched": 4,
         "total": 429,
-        "recall": 98,
-        "unique_phones": 112
+        "recall": 97,
+        "unique_phones": 120
       },
       "Марина": {
-        "matched": 104,
-        "mismatched": 1,
+        "matched": 110,
+        "mismatched": 3,
         "total": 429,
-        "recall": 99,
-        "unique_phones": 101
+        "recall": 96,
+        "unique_phones": 110
       },
       "Алина": {
         "matched": 146,
-        "mismatched": 5,
+        "mismatched": 6,
         "total": 429,
-        "recall": 97,
-        "unique_phones": 138
+        "recall": 96,
+        "unique_phones": 139
       },
       "Светлана": {
         "matched": 122,
-        "mismatched": 0,
+        "mismatched": 4,
         "total": 429,
-        "recall": 100,
-        "unique_phones": 118
-      }
-    },
-    "ai": {
-      "processed": 901,
-      "agree": 245,
-      "disagree": 115,
-      "ai_only": 407,
-      "op_only": 134,
-      "accuracy": 68
-    },
-    "ai_operators": {
-      "Мария": {
-        "processed": 189,
-        "agree": 57,
-        "disagree": 25,
-        "ai_only": 73,
-        "op_only": 34,
-        "accuracy": 70
-      },
-      "Марина": {
-        "processed": 225,
-        "agree": 56,
-        "disagree": 24,
-        "ai_only": 120,
-        "op_only": 25,
-        "accuracy": 70
-      },
-      "Алина": {
-        "processed": 243,
-        "agree": 75,
-        "disagree": 30,
-        "ai_only": 92,
-        "op_only": 46,
-        "accuracy": 71
-      },
-      "Светлана": {
-        "processed": 244,
-        "agree": 57,
-        "disagree": 36,
-        "ai_only": 122,
-        "op_only": 29,
-        "accuracy": 61
+        "recall": 97,
+        "unique_phones": 121
       }
     }
   },
@@ -251,82 +167,40 @@
     "date": "2026-03-06",
     "label": "06.03",
     "sites": 1724,
-    "matched": 322,
-    "mismatched": 4,
-    "op_empty": 1014,
-    "no_recs": 384,
-    "recall": 99,
-    "unique_phones": 223,
+    "matched": 375,
+    "mismatched": 7,
+    "op_empty": 1159,
+    "no_recs": 183,
+    "recall": 98,
+    "unique_phones": 251,
     "operators": {
       "Мария": {
-        "matched": 75,
-        "mismatched": 0,
+        "matched": 86,
+        "mismatched": 2,
         "total": 431,
-        "recall": 100,
-        "unique_phones": 70
+        "recall": 98,
+        "unique_phones": 83
       },
       "Марина": {
-        "matched": 76,
+        "matched": 97,
         "mismatched": 0,
         "total": 431,
         "recall": 100,
-        "unique_phones": 73
+        "unique_phones": 89
       },
       "Алина": {
-        "matched": 76,
-        "mismatched": 4,
+        "matched": 86,
+        "mismatched": 5,
         "total": 431,
         "recall": 95,
-        "unique_phones": 78
+        "unique_phones": 88
       },
       "Светлана": {
-        "matched": 95,
+        "matched": 106,
         "mismatched": 0,
         "total": 431,
         "recall": 100,
-        "unique_phones": 91
-      }
-    },
-    "ai": {
-      "processed": 616,
-      "agree": 183,
-      "disagree": 64,
-      "ai_only": 290,
-      "op_only": 79,
-      "accuracy": 74
-    },
-    "ai_operators": {
-      "Мария": {
-        "processed": 122,
-        "agree": 42,
-        "disagree": 10,
-        "ai_only": 47,
-        "op_only": 23,
-        "accuracy": 81
-      },
-      "Марина": {
-        "processed": 163,
-        "agree": 45,
-        "disagree": 15,
-        "ai_only": 87,
-        "op_only": 16,
-        "accuracy": 75
-      },
-      "Алина": {
-        "processed": 157,
-        "agree": 52,
-        "disagree": 13,
-        "ai_only": 77,
-        "op_only": 15,
-        "accuracy": 80
-      },
-      "Светлана": {
-        "processed": 174,
-        "agree": 44,
-        "disagree": 26,
-        "ai_only": 79,
-        "op_only": 25,
-        "accuracy": 63
+        "unique_phones": 100
       }
     }
   },
@@ -334,38 +208,79 @@
     "date": "2026-03-10",
     "label": "10.03",
     "sites": 1712,
+    "matched": 370,
+    "mismatched": 42,
+    "op_empty": 791,
+    "no_recs": 509,
+    "recall": 85,
+    "unique_phones": 236,
+    "operators": {
+      "Мария": {
+        "matched": 76,
+        "mismatched": 13,
+        "total": 428,
+        "recall": 79,
+        "unique_phones": 83
+      },
+      "Марина": {
+        "matched": 90,
+        "mismatched": 9,
+        "total": 428,
+        "recall": 86,
+        "unique_phones": 88
+      },
+      "Алина": {
+        "matched": 118,
+        "mismatched": 11,
+        "total": 428,
+        "recall": 87,
+        "unique_phones": 115
+      },
+      "Светлана": {
+        "matched": 86,
+        "mismatched": 9,
+        "total": 428,
+        "recall": 88,
+        "unique_phones": 83
+      }
+    }
+  },
+  {
+    "date": "2026-03-11",
+    "label": "11.03",
+    "sites": 1700,
     "matched": 0,
     "mismatched": 0,
-    "op_empty": 217,
-    "no_recs": 1495,
+    "op_empty": 325,
+    "no_recs": 1375,
     "recall": 0,
     "unique_phones": 0,
     "operators": {
       "Мария": {
         "matched": 0,
         "mismatched": 0,
-        "total": 428,
+        "total": 425,
         "recall": 0,
         "unique_phones": 0
       },
       "Марина": {
         "matched": 0,
         "mismatched": 0,
-        "total": 428,
+        "total": 425,
         "recall": 0,
         "unique_phones": 0
       },
       "Алина": {
         "matched": 0,
         "mismatched": 0,
-        "total": 428,
+        "total": 425,
         "recall": 0,
         "unique_phones": 0
       },
       "Светлана": {
         "matched": 0,
         "mismatched": 0,
-        "total": 428,
+        "total": 425,
         "recall": 0,
         "unique_phones": 0
       }
