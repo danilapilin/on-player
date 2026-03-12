@@ -170,8 +170,10 @@ def make_client(oauth_token=None, api_key=None):
     import httpx
 
     if oauth_token:
+        # remove ANTHROPIC_API_KEY from env so SDK doesn't add X-Api-Key header
+        # alongside Authorization: Bearer — server prioritizes X-Api-Key
+        os.environ.pop("ANTHROPIC_API_KEY", None)
         return anthropic.AsyncAnthropic(
-            api_key=None,
             auth_token=oauth_token,
             default_headers={
                 "anthropic-beta": ANTHROPIC_BETA,
