@@ -40,13 +40,28 @@ jobs:
           path: recordings_cache.json
           key: recordings-cache-${{ github.run_id }}
 
+      - name: Restore refresh token cache
+        uses: actions/cache/restore@v4
+        with:
+          path: new_refresh_token.txt
+          key: claude-refresh-token-dummy
+          restore-keys: claude-refresh-token-
+
       - name: Run AI matching
         run: python ai_matching.py
         env:
           CLAUDE_REFRESH_TOKEN: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
+          CLAUDE_CACHED_REFRESH_TOKEN_FILE: new_refresh_token.txt
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         timeout-minutes: 15
         continue-on-error: true
+
+      - name: Save rotated refresh token
+        if: hashFiles('new_refresh_token.txt') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: new_refresh_token.txt
+          key: claude-refresh-token-${{ github.run_id }}
 
       - name: Generate analytics screenshot
         run: |

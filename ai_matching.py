@@ -17,6 +17,7 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,19 +60,38 @@ SYSTEM_PROMPT = (
 
 
 def get_oauth_token():
-    """Достаёт OAuth access token: из env (CI) или macOS keychain (локально)."""
+    """Достаёт OAuth access token: из env (CI) или macOS keychain (локально).
 
-    # 1. CI: refresh token в env → обменять на access token
+    В CI приоритеты:
+    1. Кэшированный refresh token из файла (ротированный при прошлом запуске)
+    2. Refresh token из секрета (первоначальный)
+    3. Готовый access token из env
+    """
+
+    # 1. CI: кэшированный refresh token из прошлого запуска (ротированный)
+    cached_file = os.environ.get("CLAUDE_CACHED_REFRESH_TOKEN_FILE")
+    if cached_file and Path(cached_file).exists():
+        cached_rt = Path(cached_file).read_text().strip()
+        if cached_rt:
+            log.info("Using cached refresh token from previous run")
+            result = _refresh_oauth_token(cached_rt)
+            if result:
+                return result
+            log.warning("Cached refresh token failed, trying secret")
+
+    # 2. CI: refresh token из секрета
     refresh_token = os.environ.get("CLAUDE_REFRESH_TOKEN")
     if refresh_token:
-        return _refresh_oauth_token(refresh_token)
+        result = _refresh_oauth_token(refresh_token)
+        if result:
+            return result
 
-    # 2. CI: готовый access token в env
+    # 3. CI: готовый access token в env
     access_token = os.environ.get("CLAUDE_ACCESS_TOKEN")
     if access_token:
         return access_token
 
-    # 3. Локально: macOS keychain
+    # 4. Локально: macOS keychain
     try:
         result = subprocess.run(
             ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
@@ -89,7 +109,11 @@ OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 
 
 def _refresh_oauth_token(refresh_token):
-    """Обменять refresh token на свежий access token через Anthropic OAuth."""
+    """Обменять refresh token на свежий access token через Anthropic OAuth.
+
+    Returns (access_token, new_refresh_token) or (None, None).
+    Refresh tokens are single-use — each call returns a rotated pair.
+    """
     import httpx
 
     payload = {
@@ -116,15 +140,28 @@ def _refresh_oauth_token(refresh_token):
                 log.warning("OAuth refresh body: %s", resp.text[:300])
                 continue
             data = resp.json()
-            token = data.get("access_token")
-            if token:
+            access = data.get("access_token")
+            new_refresh = data.get("refresh_token")
+            if access:
                 log.info("OAuth token refreshed successfully via %s", label)
-                return token
+                # save rotated refresh token for next run
+                if new_refresh:
+                    _save_new_refresh_token(new_refresh)
+                return access
             log.error("No access_token in refresh response")
         except Exception as e:
             log.error("OAuth refresh failed (%s): %s", label, e)
 
     return None
+
+
+def _save_new_refresh_token(new_token):
+    """Сохранить новый refresh token в файл для последующего обновления секрета."""
+    try:
+        Path("new_refresh_token.txt").write_text(new_token)
+        log.info("Saved rotated refresh token to new_refresh_token.txt")
+    except Exception as e:
+        log.error("Failed to save new refresh token: %s", e)
 
 
 def make_client(oauth_token=None, api_key=None):
