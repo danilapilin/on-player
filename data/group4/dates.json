@@ -126,9 +126,9 @@
     "date": "2026-03-05",
     "label": "05.03",
     "sites": 1716,
-    "matched": 498,
+    "matched": 499,
     "mismatched": 19,
-    "op_empty": 1003,
+    "op_empty": 1002,
     "no_recs": 196,
     "recall": 96,
     "unique_phones": 303,
@@ -155,11 +155,11 @@
         "unique_phones": 139
       },
       "Светлана": {
-        "matched": 122,
+        "matched": 123,
         "mismatched": 5,
         "total": 429,
         "recall": 96,
-        "unique_phones": 122
+        "unique_phones": 123
       }
     }
   },
@@ -168,18 +168,18 @@
     "label": "06.03",
     "sites": 1724,
     "matched": 376,
-    "mismatched": 10,
-    "op_empty": 1155,
+    "mismatched": 12,
+    "op_empty": 1153,
     "no_recs": 183,
     "recall": 97,
-    "unique_phones": 255,
+    "unique_phones": 257,
     "operators": {
       "Мария": {
         "matched": 86,
-        "mismatched": 3,
+        "mismatched": 5,
         "total": 431,
-        "recall": 97,
-        "unique_phones": 84
+        "recall": 95,
+        "unique_phones": 86
       },
       "Марина": {
         "matched": 97,
@@ -208,19 +208,19 @@
     "date": "2026-03-10",
     "label": "10.03",
     "sites": 1712,
-    "matched": 399,
-    "mismatched": 53,
-    "op_empty": 1008,
-    "no_recs": 252,
+    "matched": 401,
+    "mismatched": 55,
+    "op_empty": 1046,
+    "no_recs": 210,
     "recall": 86,
-    "unique_phones": 246,
+    "unique_phones": 248,
     "operators": {
       "Мария": {
-        "matched": 80,
-        "mismatched": 13,
+        "matched": 81,
+        "mismatched": 14,
         "total": 428,
         "recall": 82,
-        "unique_phones": 84
+        "unique_phones": 86
       },
       "Марина": {
         "matched": 96,
@@ -231,17 +231,17 @@
       },
       "Алина": {
         "matched": 131,
-        "mismatched": 19,
+        "mismatched": 20,
         "total": 428,
         "recall": 87,
         "unique_phones": 128
       },
       "Светлана": {
-        "matched": 92,
+        "matched": 93,
         "mismatched": 10,
         "total": 428,
         "recall": 89,
-        "unique_phones": 87
+        "unique_phones": 88
       }
     }
   },
@@ -249,40 +249,81 @@
     "date": "2026-03-11",
     "label": "11.03",
     "sites": 1700,
-    "matched": 422,
-    "mismatched": 29,
-    "op_empty": 672,
-    "no_recs": 577,
-    "recall": 88,
-    "unique_phones": 325,
+    "matched": 445,
+    "mismatched": 45,
+    "op_empty": 737,
+    "no_recs": 473,
+    "recall": 87,
+    "unique_phones": 343,
     "operators": {
       "Мария": {
-        "matched": 89,
-        "mismatched": 5,
+        "matched": 96,
+        "mismatched": 14,
         "total": 425,
-        "recall": 85,
-        "unique_phones": 97
+        "recall": 83,
+        "unique_phones": 108
       },
       "Марина": {
         "matched": 81,
-        "mismatched": 9,
+        "mismatched": 12,
         "total": 425,
         "recall": 83,
         "unique_phones": 95
       },
       "Алина": {
         "matched": 127,
-        "mismatched": 9,
+        "mismatched": 11,
         "total": 425,
         "recall": 89,
         "unique_phones": 134
       },
       "Светлана": {
-        "matched": 125,
-        "mismatched": 6,
+        "matched": 141,
+        "mismatched": 8,
         "total": 425,
-        "recall": 93,
-        "unique_phones": 127
+        "recall": 92,
+        "unique_phones": 142
+      }
+    }
+  },
+  {
+    "date": "2026-03-12",
+    "label": "12.03",
+    "sites": 1732,
+    "matched": 0,
+    "mismatched": 0,
+    "op_empty": 384,
+    "no_recs": 1348,
+    "recall": 0,
+    "unique_phones": 0,
+    "operators": {
+      "Мария": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Марина": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Алина": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
+      },
+      "Светлана": {
+        "matched": 0,
+        "mismatched": 0,
+        "total": 433,
+        "recall": 0,
+        "unique_phones": 0
       }
     }
   }
