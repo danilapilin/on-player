@@ -249,19 +249,19 @@
     "date": "2026-03-11",
     "label": "11.03",
     "sites": 1696,
-    "matched": 331,
-    "mismatched": 60,
+    "matched": 332,
+    "mismatched": 61,
     "op_empty": 931,
-    "no_recs": 374,
+    "no_recs": 372,
     "recall": 83,
-    "unique_phones": 227,
+    "unique_phones": 228,
     "operators": {
       "Милана": {
-        "matched": 62,
-        "mismatched": 16,
+        "matched": 63,
+        "mismatched": 17,
         "total": 424,
-        "recall": 78,
-        "unique_phones": 79
+        "recall": 77,
+        "unique_phones": 81
       },
       "Кристина": {
         "matched": 69,
@@ -284,6 +284,48 @@
         "recall": 89,
         "unique_phones": 129
       }
+    },
+    "ai": {
+      "processed": 766,
+      "agree": 208,
+      "disagree": 71,
+      "ai_only": 373,
+      "op_only": 114,
+      "accuracy": 75
+    },
+    "ai_operators": {
+      "Милана": {
+        "processed": 169,
+        "agree": 29,
+        "disagree": 17,
+        "ai_only": 89,
+        "op_only": 34,
+        "accuracy": 63
+      },
+      "Кристина": {
+        "processed": 170,
+        "agree": 43,
+        "disagree": 11,
+        "ai_only": 88,
+        "op_only": 28,
+        "accuracy": 80
+      },
+      "Наталья": {
+        "processed": 208,
+        "agree": 63,
+        "disagree": 17,
+        "ai_only": 107,
+        "op_only": 21,
+        "accuracy": 79
+      },
+      "Анастасия": {
+        "processed": 219,
+        "agree": 73,
+        "disagree": 26,
+        "ai_only": 89,
+        "op_only": 31,
+        "accuracy": 74
+      }
     }
   },
   {
@@ -292,8 +334,8 @@
     "sites": 1724,
     "matched": 270,
     "mismatched": 28,
-    "op_empty": 549,
-    "no_recs": 877,
+    "op_empty": 562,
+    "no_recs": 864,
     "recall": 85,
     "unique_phones": 184,
     "operators": {
