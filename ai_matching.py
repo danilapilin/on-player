@@ -92,27 +92,39 @@ def _refresh_oauth_token(refresh_token):
     """Обменять refresh token на свежий access token через Anthropic OAuth."""
     import httpx
 
-    try:
-        resp = httpx.post(
-            "https://console.anthropic.com/v1/oauth/token",
-            json={
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-                "client_id": OAUTH_CLIENT_ID,
-            },
-            timeout=15,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        token = data.get("access_token")
-        if token:
-            log.info("OAuth token refreshed successfully")
-            return token
-        log.error("No access_token in refresh response")
-        return None
-    except Exception as e:
-        log.error("OAuth refresh failed: %s", e)
-        return None
+    payload = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": OAUTH_CLIENT_ID,
+    }
+
+    # retry with both content types — some environments prefer form-urlencoded
+    attempts = [
+        ("json", {"json": payload}),
+        ("form", {"data": payload, "headers": {"Content-Type": "application/x-www-form-urlencoded"}}),
+    ]
+
+    for label, kwargs in attempts:
+        try:
+            resp = httpx.post(
+                "https://console.anthropic.com/v1/oauth/token",
+                timeout=30,
+                **kwargs,
+            )
+            log.info("OAuth refresh attempt (%s): HTTP %s", label, resp.status_code)
+            if resp.status_code >= 400:
+                log.warning("OAuth refresh body: %s", resp.text[:300])
+                continue
+            data = resp.json()
+            token = data.get("access_token")
+            if token:
+                log.info("OAuth token refreshed successfully via %s", label)
+                return token
+            log.error("No access_token in refresh response")
+        except Exception as e:
+            log.error("OAuth refresh failed (%s): %s", label, e)
+
+    return None
 
 
 def make_client(oauth_token=None, api_key=None):
